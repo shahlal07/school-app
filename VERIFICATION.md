@@ -41,3 +41,16 @@ Commit: `a3595b9`
 **Phase 1 gates: Build ✅ / Mobile ✅ / RLS ✅ (owner path live-tested; full teacher-isolation test deferred to Phase 2 where `teacher_subjects` actually exists) / Data N/A this phase.**
 
 Commits: `4ccf3cc` (schema/RLS/registry), `0b6e5a6` (UI system + login + route guards)
+
+## Phase 2 — Examination database (in progress)
+Scope note: the owner clarified the school runs PG through 10th, not just 9th/10th. `classes.grade`/`group_name` were already schema-agnostic, so this didn't change the architecture - only what gets seeded.
+- [x] Migration `0004_examination_schema`: classes, sections, subjects, teacher_subjects, chapters, topics, students - all with `ON DELETE CASCADE` down the hierarchy and RLS scoping teachers to subjects/chapters/topics/students they're actually assigned to (via `teacher_subjects`), not the whole school's catalog. Renamed the planned `group` column to `group_name` before applying (Postgres reserved keyword - would have forced quoting in every future query).
+- [x] Migration `0005_seed_classes_subjects_syllabus`: 1 academic year, 13 classes (PG, Nursery, Prep, 1-10), 13 sections, 80 subjects across all grades, 82 chapters + 82 topics (one topic per chapter) for Physics/Chemistry/Biology/Mathematics in 9th/10th only.
+  - Confidence is deliberately uneven and documented in the migration itself: subjects-per-grade and the 4 core Science-group subjects' PTB chapter sequence are confident; every other subject's chapters (English/Urdu/Islamiat/Pakistan Studies/Computer Science, and all of PG-8) are left empty rather than fabricated - same standard applied to Kimi/ChatGPT's drafts is applied to my own content here.
+- [x] Security advisor re-run after both migrations: same accepted `is_owner()` residual as Phase 1, plus one new finding - `auth_leaked_password_protection` is disabled. This is an Auth setting (HaveIBeenPwned check), not something `apply_migration` can toggle - **owner action needed**: Supabase Dashboard → Authentication → Policies/Providers → enable leaked-password protection.
+- [x] Data gate: inserted a throwaway subject→chapter→topic chain, deleted the subject, confirmed both child rows cascade-deleted (0 orphans) - verified live against the real database, not just read from the schema.
+- [x] `types/examination.ts` (ChatGPT draft) corrected to match the actual applied schema: `group` → `group_name`, and `code`/`group_name` marked nullable (both are nullable columns, were typed non-null).
+- [x] Build gate: typecheck/lint clean after the type fixes (no UI yet references these types, so `build` wasn't re-run for this step alone).
+- 📝 Not yet done: syllabus manager CRUD UI, RLS gate for the teacher-isolation path specifically (needs a second teacher account + a `teacher_subjects` row to test against), PG-8 chapter content (deliberately deferred, not silently skipped).
+
+Commit: pending (schema + seed + type fixes, to be committed together)

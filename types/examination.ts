@@ -2,7 +2,7 @@ export interface Class {
   id: string;
   name: string;
   grade: string;
-  group: string;
+  group_name: string | null;
   academic_year_id: string;
 }
 
@@ -25,8 +25,8 @@ export interface Subject {
   id: string;
   class_id: string;
   name: string;
-  code: string;
-  group: string;
+  code: string | null;
+  group_name: string | null;
   is_active: boolean;
 }
 
@@ -35,6 +35,7 @@ export interface TeacherSubject {
   teacher_id: string;
   subject_id: string;
   class_id: string;
+  created_at: string;
 }
 
 export interface Chapter {
