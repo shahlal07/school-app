@@ -10,6 +10,11 @@
 - N/A RLS gate (no database yet)
 - N/A Data/cascade gate (no database yet)
 - 🟡 Icons are a placeholder teal "S" mark (real PNGs, not the AI-claimed-but-nonexistent ones from the first draft) — replace with real school branding later, already externalized to `public/icons/`
-- 📝 Not yet done: git init/commit (next step), Supabase project (paused — free-tier org limit), Vercel project
+- [x] Supabase project created: `school-app` (ref `khmvmympvnrxiplvggbw`, ap-southeast-1, free tier)
+- [x] GitHub repo created: https://github.com/shahlal07/school-app (private)
+- [x] Vercel project created and linked: kashif11/school-app, auto-deploys from `main`
+- [x] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY set on Vercel (production/preview/development)
+- 🟡 SUPABASE_SERVICE_ROLE_KEY: pending — owner setting this directly via `vercel env add` so the secret never passes through chat
+- [x] Production deployment READY: https://school-app-kashif11.vercel.app
 
-Commit: (pending — see below)
+Commit: `a3595b9`
