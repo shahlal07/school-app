@@ -83,7 +83,19 @@ Commit: `6a854f8`
 
 **Full consolidated build gate** (typecheck/lint/build, run once after all 5 agents across both batches had finished): all green. 10 routes total, all dynamic ones (`/owner`, `/owner/schedule`, `/owner/students`, `/owner/syllabus`, `/owner/teachers`, `/teacher`, `/teacher/exams`) confirmed `ƒ` in the build output.
 
-Commits: pending (Phase 4 + 5 schema, Phase 3b + dashboard + teacher exams UI - to be committed together)
+Commits: `4714de8`
+
+## Phase 8 — Messaging schema (in progress)
+- [x] Migration `0009_messages`: owner<->staff 1:1 messaging with broadcast fan-out (shared `broadcast_id` across recipient copies). `thread_key` is a generated, order-independent column so a conversation is addressable by one stable key regardless of who sent which message - no separate threads table needed. RLS: a teacher may only message the owner (checked via `exists (select ... where role='owner')` on the recipient), the owner may message anyone. Messages are immutable except `read_at`, enforced by trigger (verified by code review; a live two-party test is deferred until a second real user exists - noted honestly below).
+- [x] Security advisor re-run: same 2 accepted/flagged items, no new findings.
+- 🟡 Live trigger/RLS test deferred: testing "teacher can only message owner" and message immutability with real distinct users needs a second real profile, which needs a second real auth user - not created by me (no password entry). Reviewed the trigger/policy SQL carefully instead; logic mirrors the already-live-tested profiles/exam_papers guards exactly.
+
+## Phase 6 — Compliance alert engine (in progress)
+- [x] Migration `0010_alerts_engine`: `alerts` table, `pg_cron` extension enabled (free - runs inside the Postgres instance itself, no separate billed service), `scan_examination_compliance()` scans for `paper_missing`, `test_overdue`, `results_missing` conditions hourly, deduplicates via a partial unique index (`(type, reference_id) where status='open'`), auto-resolves alerts whose underlying condition has cleared.
+- [x] **Fully live-tested**, not just written: created a real overdue schedule_item + teacher_subjects assignment, ran the scan, confirmed both `paper_missing` and `test_overdue` alerts fired with correct severity/message text. Re-ran the scan and confirmed no duplicate rows (dedup works). Marked the item `completed` and re-ran: `test_overdue` auto-resolved, a new `results_missing` alert correctly appeared (paper still missing stayed open, unaffected - exactly the intended independent-condition behavior). All test data (schedule_item, teacher_subjects row, alerts) cleaned up afterward - tables are back to genuinely empty.
+- [x] Security advisor re-run: same 2 accepted/flagged items, no new findings.
+
+Commits: pending (messages + alerts schema, to be committed now before continuing further UI work)
 
 Commit: `eedc9dd` (schema + seed + type fixes)
 
