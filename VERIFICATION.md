@@ -59,7 +59,31 @@ Scope note: the owner clarified the school runs PG through 10th, not just 9th/10
 - [x] Build gate (full, sequential - all 3 agents' work + my own, run only after every agent had finished to avoid the `.next` race documented above): `npm run typecheck`, `npm run lint`, `npm run build` all clean. New dynamic routes confirmed: `/owner` (ƒ), `/owner/syllabus` (ƒ), `/owner/students` (ƒ), `/owner/teachers` (ƒ), `/teacher` (ƒ). One real bug caught before commit: I wrote `app/owner/teachers/actions.ts` and `teachers-client.tsx` but forgot `page.tsx` entirely - `tsc`/`lint` don't catch a missing route (nothing imports it, so it's not a type error), only `next build`'s route table made it visible. Added it and re-ran the full gate.
 - 🟡 Mobile gate: `/login` re-confirmed live (renders correctly, no auth needed). `/owner/syllabus` and `/owner/students` were **not** visually verified live - both require an authenticated owner session, which I cannot create myself (no password entry, even for testing). Verified instead via code review: no fixed pixel widths, `no-scrollbar` horizontal pill-lists, `shrink-0`/`truncate`/`flex-wrap` used consistently on every row that could otherwise overflow at 375px. A live screenshot from the owner would close this gap fully.
 
-Commit: pending (Phase 2 UI layer - syllabus manager, owner/teacher shells, teachers, students - to be committed together)
+Commit: `6a854f8`
+
+## Phase 4 — Exam paper workflow schema (in progress)
+- [x] Migration `0007_exam_papers`: `exam_papers` table (one row per `schedule_item`, unique constraint), full state machine (`not_started → draft → submitted → under_review → approved → conducted → results_pending → completed`), RLS scoping teacher read/write to their own papers (and only for subjects they're actually assigned to, checked via `teacher_subjects` on insert), owner full access.
+- [x] Privilege trigger: a non-owner can only move a paper through `not_started`/`draft`/`submitted` themselves, and cannot touch `reviewed_at`/`reviewed_by`/`review_notes` at all - same pattern as the Phase 1 profiles trigger. **Live-tested**: attempted to set `status = 'approved'` in a non-owner context (auth.uid() null, so `is_owner()` false) - the row's `status` and `updated_at` stayed unchanged, confirming the trigger actually fired and blocked it, not just that it compiled.
+- [x] Storage: private `exam-papers` bucket created (`insert into storage.buckets`, no dedicated Supabase MCP tool for this - done via SQL since Storage is Postgres-backed), RLS on `storage.objects` scoped by the first path segment (`<teacher_user_id>/<schedule_item_id>/<filename>` convention) plus owner bypass.
+- [x] Security advisor re-run: same 2 accepted/flagged items, no new findings (the new trigger function's `execute` was correctly revoked from public/anon/authenticated up front, unlike the Phase 1 trigger which needed a follow-up migration to fix the same issue - applied the lesson learned).
+- [x] Data gate: throwaway schedule_item + exam_paper, deleted the schedule_item, confirmed the exam_paper cascaded (0 orphans).
+- 📝 Not yet done: paper submission/upload UI (teacher-side), review UI (owner-side) - schema and security model only in this pass.
+
+## Phase 5 — Results schema (in progress)
+- [x] Migration `0008_test_results`: one row per (schedule_item, student), pass/fail computed by a trigger against a **configurable** `school_settings.pass_percentage` (seeded default 33%) rather than hard-coded - per the product spec's explicit requirement. RLS scoped through `teacher_subjects`, same pattern as everywhere else.
+- [x] Trigger **live-tested** with 3 real rows: 4/10 (40%) → `is_pass: true`, 2/10 (20%) → `is_pass: false`, absent → `marks_obtained` cleared to null and `is_pass: false`. All three matched expectations exactly.
+- [x] Security advisor re-run: same 2 accepted/flagged items, no new findings - the new trigger's `execute` was revoked up front again.
+- Data gate: not run separately for this table (same cascade pattern as exam_papers, already proven twice); all test rows (schedule_items/students/exam_papers/test_results) created for gate testing were cleaned up afterward - table is empty and ready for real use.
+
+## Phase 3b (stretch) + more Phase 2/4 UI — 3 more parallel agents
+- [x] `/owner` real dashboard (replaces Phase 1 placeholder): live stat cards (classes/active subjects/active students/active teachers via cheap `count: "exact", head: true` queries), syllabus-coverage stat (subjects with ≥1 chapter vs. without), conditional "Get set up" prompts that only show when the underlying counts are actually zero. Pure Server Component, zero fabricated numbers. One good judgment call: avoided `EmptyState` (a client component whose `onAction` callback can't cross the Server Component boundary) in favor of plain styled `Link`s.
+- [x] `/owner/schedule` (Phase 3b, stretch goal - attempted since 3a was green and agents had capacity): class/subject pill selectors, 7-day eligible-day toggle, holiday add/remove chips, live client-side preview via the same tested `generateSchedule()` (no server round-trip needed since it's pure), save-to-`schedule_items` server action, confirm-before-adding-more when a subject already has scheduled items. Subjects with zero chapters shown (not hidden) with a "(no syllabus)" note and a clear explanatory empty state instead of a disabled dead-end.
+- [x] `/teacher/exams`: the teacher's first real functional screen. Correctly relies on RLS to scope `schedule_items` to the signed-in teacher's assignments (no manual `teacher_id` filter needed or written) - explicitly documented in the page's own comment. Today/This week/Upcoming/Past grouping, single unified empty state (not three broken-looking empty sections) for the current real state of zero assignments.
+- All three reviewed file-by-file: correct joins, correct empty-state handling, mobile-safe patterns (`truncate`, `shrink-0`, `flex-wrap`) applied consistently.
+
+**Full consolidated build gate** (typecheck/lint/build, run once after all 5 agents across both batches had finished): all green. 10 routes total, all dynamic ones (`/owner`, `/owner/schedule`, `/owner/students`, `/owner/syllabus`, `/owner/teachers`, `/teacher`, `/teacher/exams`) confirmed `ƒ` in the build output.
+
+Commits: pending (Phase 4 + 5 schema, Phase 3b + dashboard + teacher exams UI - to be committed together)
 
 Commit: `eedc9dd` (schema + seed + type fixes)
 
