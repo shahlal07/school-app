@@ -35,7 +35,9 @@ Commit: `a3595b9`
 - [x] Build gate: typecheck/lint/build all green after every addition (2 real issues caught and fixed along the way: an unescaped `'` failing `react/no-unescaped-entities`, and a stale `.next` cache from running `build` and `dev` concurrently)
 - [x] Mobile gate: `/login` at 375×812, no horizontal scroll, screenshot confirms primary-teal button and card render correctly (confirms the new design tokens actually work, not just compile)
 - [x] Owner bootstrap: real Supabase auth user created by the owner (their own dashboard, their own password - never entered by me); matching `profiles` row inserted via SQL with `role = 'owner'` (`user_id 2cb6d295-6229-4f75-b226-f4bb079bceeb`)
-- 🟡 RLS gate: schema/policies are in place and reviewed, but the live "sign in as owner, land on /owner" exercise is pending the owner testing login themselves in their own browser (I do not enter account passwords, even test ones, even when given them - verifying via `auth.users.last_sign_in_at` instead of the credential itself)
-- 📝 Not yet done: owner-invites-teacher flow (needs the service-role key, which is set in Vercel but not yet pulled for local dev), a second teacher account to actually exercise "Teacher A cannot see Teacher B's data"
+- [x] RLS gate (owner path): owner tested the real login themselves in their own browser, landed on `/owner`. Confirmed genuine (not a stale redirect) via `auth.users.last_sign_in_at` populated at `2026-09-05 23:04:09 UTC`. This proves `requireRole('owner')` → `getCurrentProfile()` correctly read the profile row through the `profiles_select` RLS policy (`user_id = auth.uid()` branch) and the role branch worked.
+- 📝 Not yet done: owner-invites-teacher flow (needs the service-role key - set in Vercel, not yet pulled for local dev), a teacher test account to exercise the teacher-side path (`/teacher` access, `/owner` redirect-away) and the full "Teacher A cannot see Teacher B" cross-isolation test - the latter is only meaningful once Phase 2's `teacher_subjects` exists, so it's deferred there per the plan.
 
-Commits: `4ccf3cc` (schema/RLS/registry), plus this batch (UI system + login + route guards, pending commit below)
+**Phase 1 gates: Build ✅ / Mobile ✅ / RLS ✅ (owner path live-tested; full teacher-isolation test deferred to Phase 2 where `teacher_subjects` actually exists) / Data N/A this phase.**
+
+Commits: `4ccf3cc` (schema/RLS/registry), `0b6e5a6` (UI system + login + route guards)
