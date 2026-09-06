@@ -1,0 +1,17 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { requireRole } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
+
+type Result = { error: string | null };
+
+export async function reviewResultSubmission(id:string,status:"reviewed"|"finalized"|"rejected",notes:string):Promise<Result>{
+  const profile=await requireRole("academic_coordinator");
+  const supabase=createClient();
+  const patch={status,reviewed_by:profile.user_id,reviewed_at:new Date().toISOString(),review_notes:notes.trim()||null};
+  const {error}=await supabase.from("result_submissions").update(patch).eq("id",id);
+  if(error)return{error:error.message};
+  revalidatePath("/coordinator/results"); revalidatePath("/coordinator/academic-health"); revalidatePath("/principal/results"); revalidatePath("/owner/results");
+  return{error:null};
+}
