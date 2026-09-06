@@ -12,11 +12,12 @@ export default async function TeacherMessagesPage() {
     .from("profiles")
     .select("*")
     .eq("role", "owner")
-    .single();
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
 
   const owner = (ownerData as Profile | null) ?? null;
-
-  const messages: Message[] = [];
+  let messages: Message[] = [];
   if (owner) {
     const { data: messagesData } = await supabase
       .from("messages")
@@ -25,14 +26,8 @@ export default async function TeacherMessagesPage() {
         `and(sender_id.eq.${profile.user_id},recipient_id.eq.${owner.user_id}),and(sender_id.eq.${owner.user_id},recipient_id.eq.${profile.user_id})`
       )
       .order("created_at", { ascending: true });
-    messages.push(...((messagesData as Message[] | null) ?? []));
+    messages = (messagesData as Message[] | null) ?? [];
   }
 
-  return (
-    <TeacherMessagesClient
-      teacherUserId={profile.user_id}
-      owner={owner}
-      messages={messages}
-    />
-  );
+  return <TeacherMessagesClient teacherUserId={profile.user_id} owner={owner} messages={messages} />;
 }
