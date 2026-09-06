@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ScheduleItemRow } from "@/components/examination/schedule-list";
 import type { ExamPaper, ExamPaperStatus, PaperQueueRow } from "@/components/examination/paper-types";
 import { PaperReviewQueue } from "@/components/examination/paper-review-queue";
+import { getT } from "@/lib/i18n/get-translator";
 
 /**
  * Read-only mirror of app/coordinator/papers/page.tsx (same query pattern),
@@ -14,6 +15,7 @@ import { PaperReviewQueue } from "@/components/examination/paper-review-queue";
  */
 export default async function PrincipalPapersPage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [scheduleItemsRes, examPapersRes, classesRes, subjectsRes, profilesRes] =
     await Promise.all([
@@ -49,8 +51,8 @@ export default async function PrincipalPapersPage() {
     return {
       scheduleItem,
       paper,
-      className: classNameById.get(scheduleItem.class_id) ?? "Unknown class",
-      subjectName: subjectNameById.get(scheduleItem.subject_id) ?? "Unknown subject",
+      className: classNameById.get(scheduleItem.class_id) ?? t("principal.common.unknownClass"),
+      subjectName: subjectNameById.get(scheduleItem.subject_id) ?? t("principal.common.unknownSubject"),
       teacherName: teacherId ? teacherNameById.get(teacherId) ?? null : null,
       testType: scheduleItem.test_type,
       status
@@ -68,10 +70,9 @@ export default async function PrincipalPapersPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Papers</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.papers")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Exam papers teachers have submitted. Approving or rejecting a paper happens on the
-        coordinator side.
+        {t("principal.papers.subtitle")}
       </p>
 
       <div className="mt-5">

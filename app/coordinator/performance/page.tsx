@@ -14,6 +14,7 @@ import {
   type SubjectPerformance,
   type WeakTopic
 } from "@/components/examination/performance-types";
+import { getT } from "@/lib/i18n/get-translator";
 
 interface PassAcc { passed: number; total: number; }
 
@@ -26,6 +27,7 @@ function bumpAcc(map: Map<string, PassAcc>, key: string, didPass: boolean) {
 
 export default async function CoordinatorPerformancePage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [resultsRes, scheduleRes, classesRes, subjectsRes, chaptersRes, topicsRes, studentsRes] = await Promise.all([
     supabase.from("test_results").select("*").not("is_pass", "is", null),
@@ -48,9 +50,9 @@ export default async function CoordinatorPerformancePage() {
   if (gradedResults.length === 0) {
     return (
       <main className="p-4 sm:p-6">
-        <h1 className="text-xl font-semibold text-neutral-900">Performance</h1>
-        <p className="mt-1 text-sm text-neutral-500">Aggregate pass-rate analytics across classes, subjects, topics, and students.</p>
-        <div className="mt-5"><EmptyState title="No results yet" description="Performance analytics will appear here once teachers start entering test results." /></div>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("coordinator.performance.title")}</h1>
+        <p className="mt-1 text-sm text-neutral-500">{t("coordinator.performance.subtitle")}</p>
+        <div className="mt-5"><EmptyState title={t("coordinator.performance.noResultsYet")} description={t("coordinator.performance.noResultsYetDescription")} /></div>
       </main>
     );
   }
@@ -97,7 +99,7 @@ export default async function CoordinatorPerformancePage() {
       const acc = classAcc.get(cls.id) ?? { passed: 0, total: 0 };
       const subjectMap = classSubjectAcc.get(cls.id) ?? new Map<string, PassAcc>();
       const subjectPerformances: SubjectPerformance[] = Array.from(subjectMap.entries())
-        .map(([subjectId, subjectAcc]) => ({ ...makePassRateStat(subjectAcc.passed, subjectAcc.total), subjectId, subjectName: subjectById.get(subjectId)?.name ?? "Unknown subject" }))
+        .map(([subjectId, subjectAcc]) => ({ ...makePassRateStat(subjectAcc.passed, subjectAcc.total), subjectId, subjectName: subjectById.get(subjectId)?.name ?? t("coordinator.fallback.unknownSubject") }))
         .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
       return { ...makePassRateStat(acc.passed, acc.total), classId: cls.id, className: cls.name, subjects: subjectPerformances };
     });
@@ -110,7 +112,7 @@ export default async function CoordinatorPerformancePage() {
     const chapter = chapterById.get(topic.chapter_id);
     const subject = chapter ? subjectById.get(chapter.subject_id) : undefined;
     const cls = subject ? classById.get(subject.class_id) : undefined;
-    weakTopics.push({ ...makePassRateStat(acc.passed, acc.total), topicId, topicName: topic.name, chapterName: chapter?.name ?? "Unknown chapter", subjectName: subject?.name ?? "Unknown subject", className: cls?.name ?? "Unknown class" });
+    weakTopics.push({ ...makePassRateStat(acc.passed, acc.total), topicId, topicName: topic.name, chapterName: chapter?.name ?? t("coordinator.fallback.unknownChapter"), subjectName: subject?.name ?? t("coordinator.fallback.unknownSubject"), className: cls?.name ?? t("coordinator.fallback.unknownClass") });
   }
 
   const weakestTopics = weakTopics.sort((a, b) => a.passRate - b.passRate).slice(0, WEAK_TOPIC_LIMIT);
@@ -123,7 +125,7 @@ export default async function CoordinatorPerformancePage() {
         studentId,
         studentName: student.name,
         rollNo: student.roll_no,
-        className: classById.get(student.class_id)?.name ?? "Unknown class",
+        className: classById.get(student.class_id)?.name ?? t("coordinator.fallback.unknownClass"),
         averagePercent: acc.marksTotal > 0 ? Math.round((acc.obtained / acc.marksTotal) * 1000) / 10 : 0,
         passRate: Math.round((acc.passed / acc.total) * 100),
         gradedCount: acc.total
@@ -136,8 +138,8 @@ export default async function CoordinatorPerformancePage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Performance</h1>
-      <p className="mt-1 text-sm text-neutral-500">Aggregate pass-rate analytics across classes, subjects, topics, and students.</p>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("coordinator.performance.title")}</h1>
+      <p className="mt-1 text-sm text-neutral-500">{t("coordinator.performance.subtitle")}</p>
       <div className="mt-5"><PerformanceDashboard overall={overall} classPerformances={classPerformances} weakestTopics={weakestTopics} /></div>
       <div className="mt-5"><StudentRiskPanel students={riskRows} /></div>
     </main>

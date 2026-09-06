@@ -3,15 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/get-translator";
 
 type Result={error:string|null};
 
 export async function reviewResultSubmission(id:string,status:"reviewed"|"finalized"|"rejected",notes:string):Promise<Result>{
-  const profile=await requireRole("academic_coordinator"); const supabase=createClient();
-  if(status==='rejected'&&!notes.trim())return{error:'A rejection reason is required.'};
+  const profile=await requireRole("academic_coordinator"); const supabase=createClient(); const t=await getT();
+  if(status==='rejected'&&!notes.trim())return{error:t("coordinator.results.rejectionReasonRequired")};
   const {data:submission,error:fetchError}=await supabase.from('result_submissions').select('schedule_item_id').eq('id',id).maybeSingle();
   if(fetchError)return{error:fetchError.message};
-  if(!submission)return{error:'Result submission not found.'};
+  if(!submission)return{error:t("coordinator.results.submissionNotFound")};
   const {error}=await supabase.from('result_submissions').update({status,reviewed_by:profile.user_id,reviewed_at:new Date().toISOString(),review_notes:notes.trim()||null}).eq('id',id);
   if(error)return{error:error.message};
   // Finalizing results is the authoritative "this exam cycle is done" signal -

@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { classOrderIndex } from "@/components/examination/constants";
 import { StudentsManager } from "@/components/examination/students-manager";
+import { getT } from "@/lib/i18n/get-translator";
 import type { Class, Section, Student } from "@/types/examination";
 
 export default async function ClerkStudentsPage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [classesRes, sectionsRes, studentsRes] = await Promise.all([
     supabase.from("classes").select("*"),
@@ -20,10 +22,8 @@ export default async function ClerkStudentsPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Students</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        Manage the student roster per class and section.
-      </p>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("clerk.students.title")}</h1>
+      <p className="mt-1 text-sm text-neutral-500">{t("clerk.students.subtitle")}</p>
 
       <div className="mt-5">
         <StudentsManager classes={classes} sections={sections} students={students} />

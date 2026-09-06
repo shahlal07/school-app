@@ -1,13 +1,15 @@
-import type { Dictionary } from "@/lib/i18n/types";
+import type enCore from "@/lib/i18n/dictionaries/en/core";
+import type { Widen } from "@/lib/i18n/types";
 
 /**
  * Urdu dictionary. Wording targets clear, professional Pakistani-school
  * Urdu (not literary/formal registers) per the terminology dictionary in
  * the product spec. Must implement exactly the same key shape as
- * dictionaries/en.ts - the Dictionary type below enforces this at compile
- * time so a missing key fails the build instead of silently falling back.
+ * en/core.ts - typed against that file specifically (not the full merged
+ * Dictionary, which now also includes every per-domain file merged in
+ * index.ts) so this file's own shape is checked in isolation.
  */
-const ur: Dictionary = {
+const ur: Widen<typeof enCore> = {
   common: {
     save: "محفوظ کریں",
     cancel: "منسوخ کریں",

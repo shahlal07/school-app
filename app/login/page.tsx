@@ -1,7 +1,10 @@
 import { LoginForm } from "./login-form";
 import { InstallPwaBanner } from "@/components/shared/install-pwa-banner";
+import { getT } from "@/lib/i18n/get-translator";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const t = await getT();
+
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="w-full max-w-[400px]">
@@ -10,7 +13,7 @@ export default function LoginPage() {
             <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
               School OS
             </h1>
-            <p className="mt-2 text-sm text-neutral-500">Sign in to your account</p>
+            <p className="mt-2 text-sm text-neutral-500">{t("auth.signInToYourAccount")}</p>
           </div>
 
           <LoginForm />

@@ -2,6 +2,7 @@ import type { Profile } from "@/types/database";
 import type { AlertRow, AlertWithTeacher } from "@/components/examination/alert-types";
 import { createClient } from "@/lib/supabase/server";
 import { AlertInbox } from "@/components/examination/alert-inbox";
+import { getT } from "@/lib/i18n/get-translator";
 
 import { resolveAlert } from "./actions";
 
@@ -14,6 +15,7 @@ import { resolveAlert } from "./actions";
  */
 export default async function OwnerAlertsPage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [alertsRes, profilesRes] = await Promise.all([
     supabase.from("alerts").select("*").order("created_at", { ascending: false }),
@@ -42,9 +44,9 @@ export default async function OwnerAlertsPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Alerts</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.alerts")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Compliance issues detected automatically across papers, tests, and results.
+        {t("owner.alerts.subtitle")}
       </p>
 
       <div className="mt-5">

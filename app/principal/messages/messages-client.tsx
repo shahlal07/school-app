@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { ChatThread } from "@/components/examination/chat-thread";
 import type { Message, Profile } from "@/types/database";
+import { useTranslation } from "@/lib/i18n/locale-provider";
 
 import { markOwnerMessagesRead, sendMessageToOwner } from "./actions";
 
@@ -25,6 +26,7 @@ interface PrincipalMessagesClientProps {
  */
 function PrincipalMessagesInner({ principalUserId, owner, messages }: PrincipalMessagesClientProps) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [replyBody, setReplyBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [, startReadTransition] = useTransition();
@@ -60,18 +62,18 @@ function PrincipalMessagesInner({ principalUserId, owner, messages }: PrincipalM
 
   return (
     <div className="flex h-[calc(100vh-3.5rem-4rem)] flex-col gap-3 p-4 sm:p-6 md:h-[calc(100vh-4rem)]">
-      <h1 className="text-lg font-semibold text-neutral-900">Messages</h1>
+      <h1 className="text-lg font-semibold text-neutral-900">{t("nav.messages")}</h1>
 
       <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-neutral-200 bg-white px-3 py-4">
         {!owner ? (
           <EmptyState
-            title="No owner account found"
-            description="There is no owner account to message yet."
+            title={t("principal.messages.noOwnerTitle")}
+            description={t("principal.messages.noOwnerDescription")}
           />
         ) : messages.length === 0 ? (
           <EmptyState
-            title="No messages yet"
-            description="Your conversation with the school owner will appear here."
+            title={t("principal.messages.noMessagesTitle")}
+            description={t("principal.messages.noMessagesDescription")}
           />
         ) : (
           <ChatThread messages={messages} currentUserId={principalUserId} />
@@ -81,17 +83,17 @@ function PrincipalMessagesInner({ principalUserId, owner, messages }: PrincipalM
       <form onSubmit={handleReply} className="flex items-end gap-2">
         <div className="flex-1">
           <Textarea
-            label="Reply"
+            label={t("principal.messages.replyLabel")}
             className="min-h-[44px]"
             value={replyBody}
             onChange={(event) => setReplyBody(event.target.value)}
-            placeholder="Write a message to the school owner..."
+            placeholder={t("principal.messages.placeholder")}
             required
             disabled={!owner}
           />
         </div>
         <Button type="submit" size="md" loading={submitting} disabled={!owner}>
-          Send
+          {t("principal.messages.send")}
         </Button>
       </form>
     </div>

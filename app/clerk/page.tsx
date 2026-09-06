@@ -2,7 +2,9 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Bdi } from "@/components/shared/bdi";
 import { classOrderIndex } from "@/components/examination/constants";
+import { getT } from "@/lib/i18n/get-translator";
 import type { Class, Student } from "@/types/examination";
 
 const linkButtonClasses =
@@ -10,6 +12,7 @@ const linkButtonClasses =
 
 export default async function ClerkHomePage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [classesRes, activeStudentsCountRes, allStudentsRes, activeTeachersCountRes] =
     await Promise.all([
@@ -43,33 +46,37 @@ export default async function ClerkHomePage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Clerk desk</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        Admissions and student-record management.
-      </p>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("clerk.home.title")}</h1>
+      <p className="mt-1 text-sm text-neutral-500">{t("clerk.home.subtitle")}</p>
 
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Link href="/clerk/students" className="block">
           <Card className="h-full transition-shadow hover:shadow-md">
             <CardContent className="py-5">
-              <p className="text-2xl font-semibold text-neutral-900">{totalActiveStudents}</p>
-              <p className="mt-1 text-sm text-neutral-500">Active students</p>
+              <p className="text-2xl font-semibold text-neutral-900">
+                <Bdi>{totalActiveStudents}</Bdi>
+              </p>
+              <p className="mt-1 text-sm text-neutral-500">{t("ownerDashboard.activeStudents")}</p>
             </CardContent>
           </Card>
         </Link>
         <Link href="/clerk/students" className="block">
           <Card className="h-full transition-shadow hover:shadow-md">
             <CardContent className="py-5">
-              <p className="text-2xl font-semibold text-neutral-900">{classes.length}</p>
-              <p className="mt-1 text-sm text-neutral-500">Classes</p>
+              <p className="text-2xl font-semibold text-neutral-900">
+                <Bdi>{classes.length}</Bdi>
+              </p>
+              <p className="mt-1 text-sm text-neutral-500">{t("ownerDashboard.classes")}</p>
             </CardContent>
           </Card>
         </Link>
         <Link href="/clerk/staff" className="block">
           <Card className="h-full transition-shadow hover:shadow-md">
             <CardContent className="py-5">
-              <p className="text-2xl font-semibold text-neutral-900">{totalActiveTeachers}</p>
-              <p className="mt-1 text-sm text-neutral-500">Active teachers</p>
+              <p className="text-2xl font-semibold text-neutral-900">
+                <Bdi>{totalActiveTeachers}</Bdi>
+              </p>
+              <p className="mt-1 text-sm text-neutral-500">{t("ownerDashboard.activeTeachers")}</p>
             </CardContent>
           </Card>
         </Link>
@@ -78,11 +85,11 @@ export default async function ClerkHomePage() {
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Roster by class</CardTitle>
+            <CardTitle>{t("clerk.home.rosterByClass")}</CardTitle>
           </CardHeader>
           <CardContent>
             {classes.length === 0 ? (
-              <p className="text-sm text-neutral-500">No classes found yet.</p>
+              <p className="text-sm text-neutral-500">{t("clerk.home.noClassesFound")}</p>
             ) : (
               <ul className="flex flex-col gap-2">
                 {classes.map((klass) => (
@@ -90,30 +97,30 @@ export default async function ClerkHomePage() {
                     key={klass.id}
                     className="flex items-center justify-between rounded-xl bg-neutral-50 px-4 py-2.5"
                   >
-                    <span className="text-sm font-medium text-neutral-900">{klass.name}</span>
+                    <span className="text-sm font-medium text-neutral-900">
+                      <Bdi>{klass.name}</Bdi>
+                    </span>
                     <span className="text-sm text-neutral-500">
-                      {studentsByClass.get(klass.id) ?? 0} students
+                      <Bdi>{studentsByClass.get(klass.id) ?? 0}</Bdi> {t("clerk.home.studentsSuffix")}
                     </span>
                   </li>
                 ))}
               </ul>
             )}
             <Link href="/clerk/students" className={`${linkButtonClasses} mt-4`}>
-              Manage students
+              {t("clerk.home.manageStudents")}
             </Link>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Staff records</CardTitle>
+            <CardTitle>{t("clerk.home.staffRecords")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-neutral-500">
-              Set designation and joining date for teaching staff.
-            </p>
+            <p className="text-sm text-neutral-500">{t("clerk.home.staffRecordsDescription")}</p>
             <Link href="/clerk/staff" className={`${linkButtonClasses} mt-4`}>
-              Open staff list
+              {t("clerk.home.openStaffList")}
             </Link>
           </CardContent>
         </Card>

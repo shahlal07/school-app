@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Tabs } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AlertCard } from "@/components/examination/alert-card";
+import { getT } from "@/lib/i18n/get-translator";
 
 /**
  * Read-only mirror of app/owner/alerts/page.tsx, using the same query
@@ -19,6 +20,7 @@ import { AlertCard } from "@/components/examination/alert-card";
  */
 export default async function PrincipalAlertsPage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [alertsRes, profilesRes] = await Promise.all([
     supabase.from("alerts").select("*").order("created_at", { ascending: false }),
@@ -44,10 +46,9 @@ export default async function PrincipalAlertsPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Alerts</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.alerts")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Compliance issues detected automatically across papers, tests, and results. Resolving an
-        alert happens on the owner side.
+        {t("principal.alerts.subtitle")}
       </p>
 
       <div className="mt-5">
@@ -55,12 +56,12 @@ export default async function PrincipalAlertsPage() {
           tabs={[
             {
               id: "open",
-              label: `Open (${open.length})`,
+              label: `${t("principal.alerts.open")} (${open.length})`,
               content:
                 open.length === 0 ? (
                   <EmptyState
-                    title="No compliance issues right now"
-                    description="Every paper, test, and result is on track."
+                    title={t("principal.alerts.noIssuesTitle")}
+                    description={t("principal.alerts.noIssuesDescription")}
                   />
                 ) : (
                   <ul className="flex flex-col gap-2.5">
@@ -74,12 +75,12 @@ export default async function PrincipalAlertsPage() {
             },
             {
               id: "resolved",
-              label: `Resolved (${resolved.length})`,
+              label: `${t("principal.alerts.resolved")} (${resolved.length})`,
               content:
                 resolved.length === 0 ? (
                   <EmptyState
-                    title="Nothing resolved yet"
-                    description="Alerts resolved by the owner will be kept here as a history."
+                    title={t("principal.alerts.nothingResolvedTitle")}
+                    description={t("principal.alerts.nothingResolvedDescription")}
                   />
                 ) : (
                   <ul className="flex flex-col gap-2.5">

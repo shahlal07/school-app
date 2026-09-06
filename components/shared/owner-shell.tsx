@@ -119,7 +119,7 @@ function OwnerMobileNav({
 
 export function OwnerShell({ children, ownerName }: OwnerShellProps) {
   const pathname = usePathname();
-  const { t, dir } = useTranslation();
+  const { t } = useTranslation();
 
   const sidebarItems: SidebarNavItem[] = [
     { label: t("nav.dashboard"), href: "/owner" },
@@ -148,16 +148,16 @@ export function OwnerShell({ children, ownerName }: OwnerShellProps) {
     { label: t("common.view"), href: "#owner-more", icon: "menu" }
   ];
 
-  const asideSide = dir === "rtl" ? "right-0" : "left-0";
-  const contentPadding = dir === "rtl" ? "md:pr-60" : "md:pl-60";
-
   return (
     <div className="min-h-screen bg-neutral-50">
-      <aside
-        className={`fixed inset-y-0 ${asideSide} hidden w-60 flex-col border-neutral-200 bg-white md:flex ${
-          dir === "rtl" ? "border-l" : "border-r"
-        }`}
-      >
+      {/*
+       * Layout stays fixed regardless of locale - switching to Urdu
+       * translates text and swaps the typeface, but the sidebar/content
+       * arrangement below is deliberately identical in both languages
+       * (see app/layout.tsx's dir="ltr" comment for why a full RTL mirror
+       * was rejected).
+       */}
+      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-neutral-200 bg-white md:flex">
         <div className="flex h-16 items-center border-b border-neutral-200 px-5">
           <span className="text-lg font-bold text-primary-600">School OS</span>
         </div>
@@ -185,7 +185,7 @@ export function OwnerShell({ children, ownerName }: OwnerShellProps) {
         </nav>
       </aside>
 
-      <div className={`flex min-h-screen flex-col ${contentPadding}`}>
+      <div className="flex min-h-screen flex-col md:pl-60">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-neutral-200 bg-white px-4 md:px-6">
           <div className="flex items-center gap-3">
             <Avatar name={ownerName} size="sm" />

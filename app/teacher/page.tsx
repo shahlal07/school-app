@@ -2,9 +2,11 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth/session";
+import { getT } from "@/lib/i18n/get-translator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Bdi } from "@/components/shared/bdi";
 import type { Chapter, Class, ClassTeacher, Section, Subject, Topic } from "@/types/examination";
 import type { ScheduleItemRow } from "@/components/examination/schedule-list";
 import { TeacherScheduleCard, type TeacherScheduleItem } from "@/components/examination/teacher-schedule-card";
@@ -21,8 +23,18 @@ function pakistanDate(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
-function statusLabel(status: string): string {
-  return status === "approved" ? "Approved" : status === "submitted" ? "Submitted" : status === "draft" ? "Draft" : status.replaceAll("_", " ");
+function statusLabel(t: (key: string) => string, status: string): string {
+  const key: Record<string, string> = {
+    approved: "status.approved",
+    submitted: "status.submitted",
+    draft: "status.draft",
+    not_started: "status.notStarted",
+    under_review: "status.underReview",
+    conducted: "status.conducted",
+    results_pending: "status.resultsPending",
+    completed: "status.completed"
+  };
+  return key[status] ? t(key[status]) : status.replaceAll("_", " ");
 }
 
 function statusVariant(status: string): "success" | "warning" | "danger" | "neutral" | "info" {
@@ -33,6 +45,7 @@ function statusVariant(status: string): "success" | "warning" | "danger" | "neut
 }
 
 export default async function TeacherHomePage() {
+  const t = await getT();
   const profile = await getCurrentProfile();
   const supabase = createClient();
 
@@ -94,54 +107,57 @@ export default async function TeacherHomePage() {
   const marksAwaitingEntry = upcomingItems.filter((item) => !completedResultIds.has(item.id)).length;
   const printedCount = papers.filter((paper) => paper.print_status === "printed").length;
 
-  const firstName = profile?.full_name.split(" ")[0] ?? "there";
+  const firstName = profile?.full_name.split(" ")[0] ?? null;
 
   return (
     <main className="p-4 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary-600">Teacher dashboard</p>
-          <h1 className="mt-1 text-2xl font-semibold text-neutral-900">Hi, {firstName}</h1>
-          <p className="mt-1 text-sm text-neutral-500">Your teaching, exam and follow-up tasks in one place.</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary-600">{t("teacher.home.eyebrow")}</p>
+          <h1 className="mt-1 text-2xl font-semibold text-neutral-900">
+            {t("teacher.home.greeting")}
+            {firstName ? <>, <Bdi>{firstName}</Bdi></> : ` ${t("teacher.home.fallbackName")}`}
+          </h1>
+          <p className="mt-1 text-sm text-neutral-500">{t("teacher.home.subtitle")}</p>
         </div>
-        {homeroomLabel && <Badge variant="info">Class Teacher · {homeroomLabel}</Badge>}
+        {homeroomLabel && <Badge variant="info">{t("teacher.home.classTeacherBadgePrefix")} · <Bdi>{homeroomLabel}</Bdi></Badge>}
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Link href="/teacher/exams" className="rounded-xl border border-neutral-200 bg-white p-3 hover:shadow-sm">
-          <p className="text-2xl font-semibold text-neutral-900">{todayItems.length}</p><p className="text-xs text-neutral-500">Today&apos;s classes</p>
+          <p className="text-2xl font-semibold text-neutral-900"><Bdi>{todayItems.length}</Bdi></p><p className="text-xs text-neutral-500">{t("teacher.home.statTodayClasses")}</p>
         </Link>
         <Link href="/teacher/exams" className="rounded-xl border border-neutral-200 bg-white p-3 hover:shadow-sm">
-          <p className="text-2xl font-semibold text-neutral-900">{papersAwaitingAction}</p><p className="text-xs text-neutral-500">Paper actions</p>
+          <p className="text-2xl font-semibold text-neutral-900"><Bdi>{papersAwaitingAction}</Bdi></p><p className="text-xs text-neutral-500">{t("teacher.home.statPaperActions")}</p>
         </Link>
         <Link href="/teacher/exams" className="rounded-xl border border-neutral-200 bg-white p-3 hover:shadow-sm">
-          <p className="text-2xl font-semibold text-neutral-900">{marksAwaitingEntry}</p><p className="text-xs text-neutral-500">Marks pending</p>
+          <p className="text-2xl font-semibold text-neutral-900"><Bdi>{marksAwaitingEntry}</Bdi></p><p className="text-xs text-neutral-500">{t("teacher.home.statMarksPending")}</p>
         </Link>
         <Link href="/teacher/alerts" className="rounded-xl border border-neutral-200 bg-white p-3 hover:shadow-sm">
-          <p className="text-2xl font-semibold text-neutral-900">{openAlertCount + unreadMessageCount}</p><p className="text-xs text-neutral-500">Needs attention</p>
+          <p className="text-2xl font-semibold text-neutral-900"><Bdi>{openAlertCount + unreadMessageCount}</Bdi></p><p className="text-xs text-neutral-500">{t("teacher.home.statNeedsAttention")}</p>
         </Link>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Link href="/teacher/exams" className="rounded-xl bg-primary-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-primary-700">Open exam workspace</Link>
-        <Link href="/teacher/messages" className="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-center text-sm font-semibold text-neutral-800 hover:bg-neutral-50">Open messages</Link>
+        <Link href="/teacher/exams" className="rounded-xl bg-primary-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-primary-700">{t("teacher.home.openExamWorkspace")}</Link>
+        <Link href="/teacher/messages" className="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-center text-sm font-semibold text-neutral-800 hover:bg-neutral-50">{t("teacher.home.openMessages")}</Link>
       </div>
 
       <Card className="mt-5">
         <CardContent>
           <div className="flex items-center justify-between gap-2">
-            <div><h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Exam readiness · next 7 days</h2><p className="mt-1 text-xs text-neutral-500">{printedCount} paper(s) are already marked printed.</p></div>
-            <Link href="/teacher/exams" className="text-xs font-medium text-primary-600">See all</Link>
+            <div><h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">{t("teacher.home.examReadinessHeading")}</h2><p className="mt-1 text-xs text-neutral-500"><Bdi>{printedCount}</Bdi> {t("teacher.home.printedCountSuffix")}</p></div>
+            <Link href="/teacher/exams" className="text-xs font-medium text-primary-600">{t("teacher.home.seeAll")}</Link>
           </div>
           <div className="mt-3 flex flex-col gap-2">
             {upcomingItems.slice(0, 6).map((item) => {
               const paper = paperBySchedule.get(item.id);
               return (
                 <Link key={item.id} href={`/teacher/exams/${item.id}`} className="flex items-center justify-between gap-3 rounded-lg border border-neutral-100 p-3 hover:bg-neutral-50">
-                  <div className="min-w-0"><p className="truncate text-sm font-medium text-neutral-800">{item.title}</p><p className="truncate text-xs text-neutral-500">{classById.get(item.class_id)?.name ?? "Class"} · {subjectById.get(item.subject_id)?.name ?? "Subject"} · {item.scheduled_date}</p></div>
+                  <div className="min-w-0"><p className="truncate text-sm font-medium text-neutral-800"><Bdi>{item.title}</Bdi></p><p className="truncate text-xs text-neutral-500"><Bdi>{classById.get(item.class_id)?.name ?? t("teacher.home.classFallback")}</Bdi> · <Bdi>{subjectById.get(item.subject_id)?.name ?? t("teacher.home.subjectFallback")}</Bdi> · <Bdi>{item.scheduled_date}</Bdi></p></div>
                   <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-                    <Badge variant={statusVariant(paper?.status ?? "not_started")}>{statusLabel(paper?.status ?? "not_started")}</Badge>
-                    {paper?.print_status === "printed" && <Badge variant="success">Printed</Badge>}
+                    <Badge variant={statusVariant(paper?.status ?? "not_started")}>{statusLabel(t, paper?.status ?? "not_started")}</Badge>
+                    {paper?.print_status === "printed" && <Badge variant="success">{t("status.printed")}</Badge>}
                   </div>
                 </Link>
               );
@@ -151,9 +167,9 @@ export default async function TeacherHomePage() {
       </Card>
 
       <div className="mt-6">
-        <div className="mb-2 flex items-center justify-between"><h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Today&apos;s schedule</h2>{upcomingItems.length > todayItems.length && <Link href="/teacher/exams" className="text-xs font-medium text-primary-600">View week</Link>}</div>
+        <div className="mb-2 flex items-center justify-between"><h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">{t("teacher.home.todaysScheduleHeading")}</h2>{upcomingItems.length > todayItems.length && <Link href="/teacher/exams" className="text-xs font-medium text-primary-600">{t("teacher.home.viewWeek")}</Link>}</div>
         {todayItems.length === 0 ? (
-          <EmptyState title="Nothing scheduled today" description={items.length === 0 ? "No subjects are assigned yet." : "Enjoy the break. Your next exam tasks are shown above."} />
+          <EmptyState title={t("teacher.home.emptyTodayTitle")} description={items.length === 0 ? t("teacher.home.emptyTodayNoSubjects") : t("teacher.home.emptyTodayBreak")} />
         ) : (
           <div className="flex flex-col gap-2.5">{todayItems.map((item) => <TeacherScheduleCard key={item.id} item={item} />)}</div>
         )}

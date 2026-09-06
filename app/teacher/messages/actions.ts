@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/get-translator";
 
 type ActionResult = { error: string | null };
 
@@ -18,13 +19,14 @@ export async function sendMessageToOwner(
   body: string
 ): Promise<ActionResult> {
   const profile = await requireRole("teacher");
+  const t = await getT();
 
   const trimmedBody = body.trim();
   if (!trimmedBody) {
-    return { error: "Message cannot be empty." };
+    return { error: t("teacher.messages.messageEmpty") };
   }
   if (!ownerUserId) {
-    return { error: "Could not find the school owner to message." };
+    return { error: t("teacher.messages.ownerNotFound") };
   }
 
   const supabase = createClient();

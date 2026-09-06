@@ -4,6 +4,8 @@ import { classOrderIndex } from "@/components/examination/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ExistingScheduleList, type ScheduleItemRow } from "@/components/examination/schedule-list";
+import { getT } from "@/lib/i18n/get-translator";
+import { Bdi } from "@/components/shared/bdi";
 
 /**
  * Read-only exam schedule view for principal. Unlike app/owner/schedule,
@@ -15,6 +17,7 @@ import { ExistingScheduleList, type ScheduleItemRow } from "@/components/examina
  */
 export default async function PrincipalSchedulePage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [classesRes, subjectsRes, scheduleItemsRes] = await Promise.all([
     supabase.from("classes").select("*"),
@@ -46,17 +49,16 @@ export default async function PrincipalSchedulePage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Schedule</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.schedule")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Every scheduled test, grouped by class and subject. Generating new schedules happens on
-        the owner side.
+        {t("principal.schedule.subtitle")}
       </p>
 
       <div className="mt-5">
         {classesWithSchedules.length === 0 ? (
           <EmptyState
-            title="Nothing scheduled yet"
-            description="Once tests are scheduled for a subject, they will show up here."
+            title={t("emptyStates.nothingScheduledYet")}
+            description={t("principal.schedule.emptyDescription")}
           />
         ) : (
           <div className="flex flex-col gap-4">
@@ -67,12 +69,16 @@ export default async function PrincipalSchedulePage() {
               return (
                 <Card key={klass.id}>
                   <CardHeader>
-                    <CardTitle>{klass.name}</CardTitle>
+                    <CardTitle>
+                      <Bdi>{klass.name}</Bdi>
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-4">
                     {classSubjects.map((subject) => (
                       <div key={subject.id}>
-                        <p className="mb-1 text-sm font-medium text-neutral-700">{subject.name}</p>
+                        <p className="mb-1 text-sm font-medium text-neutral-700">
+                          <Bdi>{subject.name}</Bdi>
+                        </p>
                         <ExistingScheduleList items={scheduleItemsBySubject[subject.id] ?? []} />
                       </div>
                     ))}

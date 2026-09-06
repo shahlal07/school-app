@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { generateExamSet } from "./actions";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/lib/i18n/locale-provider";
 
 /**
  * Per-class "Generate next set" control. Only ever rendered when the caller
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
  * security boundary.
  */
 export function GenerateSetForm({ classId }: { classId: string }) {
+  const { t } = useTranslation();
   const [startDate, setStartDate] = useState("");
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ error: string | null } | null>(null);
@@ -27,7 +29,7 @@ export function GenerateSetForm({ classId }: { classId: string }) {
     <div className="flex flex-col gap-2 rounded-xl border border-dashed border-neutral-300 p-3">
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-xs text-neutral-500">
-          Start date (optional)
+          {t("coordinator.examSets.startDateOptional")}
           <input
             type="date"
             value={startDate}
@@ -36,12 +38,12 @@ export function GenerateSetForm({ classId }: { classId: string }) {
           />
         </label>
         <Button type="button" size="sm" onClick={handleGenerate} loading={pending}>
-          Generate next set
+          {t("coordinator.examSets.generateNextSet")}
         </Button>
       </div>
       {result?.error && <p className="text-xs text-danger-600">{result.error}</p>}
       {result && !result.error && (
-        <p className="text-xs text-success-700">Exam set generated.</p>
+        <p className="text-xs text-success-700">{t("coordinator.examSets.examSetGenerated")}</p>
       )}
     </div>
   );

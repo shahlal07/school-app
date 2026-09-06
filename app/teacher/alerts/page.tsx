@@ -1,5 +1,6 @@
 import type { AlertRow, AlertWithTeacher } from "@/components/examination/alert-types";
 import { createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/get-translator";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AlertCard } from "@/components/examination/alert-card";
 
@@ -11,6 +12,7 @@ import { AlertCard } from "@/components/examination/alert-card";
  * RLS too), so no action is wired up here.
  */
 export default async function TeacherAlertsPage() {
+  const t = await getT();
   const supabase = createClient();
 
   const { data } = await supabase
@@ -26,20 +28,20 @@ export default async function TeacherAlertsPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Alerts</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.alerts")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Compliance issues the school owner has been notified about for your classes.
+        {t("teacher.alerts.subtitle")}
       </p>
 
       <div className="mt-5 flex flex-col gap-6">
         <section>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-            Open
+            {t("teacher.alerts.openHeading")}
           </h2>
           {open.length === 0 ? (
             <EmptyState
-              title="You're all caught up"
-              description="No open compliance issues for you right now. This updates automatically as papers, tests, and results are tracked."
+              title={t("teacher.alerts.emptyTitle")}
+              description={t("teacher.alerts.emptyDescription")}
             />
           ) : (
             <ul className="flex flex-col gap-2.5">
@@ -55,7 +57,7 @@ export default async function TeacherAlertsPage() {
         {resolved.length > 0 && (
           <section>
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Resolved
+              {t("teacher.alerts.resolvedHeading")}
             </h2>
             <ul className="flex flex-col gap-2.5">
               {resolved.map((alert) => (

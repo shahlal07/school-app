@@ -2,8 +2,10 @@ import Link from "next/link";
 
 import type { ScheduleTestType } from "@/lib/scheduling/generate-schedule";
 import type { ScheduleItemStatus } from "@/components/examination/schedule-list";
+import { getT } from "@/lib/i18n/get-translator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Bdi } from "@/components/shared/bdi";
 
 /**
  * A schedule_items row enriched with the joined class/subject/chapter/topic
@@ -27,26 +29,32 @@ export interface TeacherScheduleItem {
   topicName: string | null;
 }
 
-const TEST_TYPE_LABEL: Record<ScheduleTestType, string> = {
-  topic: "Topic test",
-  chapter: "Chapter test",
-  revision: "Revision",
-  monthly: "Monthly",
-  midterm: "Midterm",
-  terminal: "Terminal",
-  final: "Final",
-  custom: "Custom"
-};
+function testTypeLabel(t: (key: string) => string, testType: ScheduleTestType): string {
+  const key: Record<ScheduleTestType, string> = {
+    topic: "teacher.testType.topic",
+    chapter: "teacher.testType.chapter",
+    revision: "teacher.testType.revision",
+    monthly: "teacher.testType.monthly",
+    midterm: "teacher.testType.midterm",
+    terminal: "teacher.testType.terminal",
+    final: "teacher.testType.final",
+    custom: "teacher.testType.custom"
+  };
+  return t(key[testType]);
+}
 
-const STATUS_LABEL: Record<ScheduleItemStatus, string> = {
-  upcoming: "Upcoming",
-  draft: "Draft",
-  scheduled: "Scheduled",
-  completed: "Completed",
-  skipped: "Skipped",
-  rescheduled: "Rescheduled",
-  cancelled: "Cancelled"
-};
+function statusLabel(t: (key: string) => string, status: ScheduleItemStatus): string {
+  const key: Record<ScheduleItemStatus, string> = {
+    upcoming: "teacher.schedule.statusUpcoming",
+    draft: "status.draft",
+    scheduled: "status.scheduled",
+    completed: "status.completed",
+    skipped: "teacher.schedule.statusSkipped",
+    rescheduled: "teacher.schedule.statusRescheduled",
+    cancelled: "status.cancelled"
+  };
+  return t(key[status]);
+}
 
 const STATUS_VARIANT: Record<
   ScheduleItemStatus,
@@ -71,7 +79,8 @@ export function formatScheduleDate(iso: string): string {
   });
 }
 
-export function TeacherScheduleCard({ item }: { item: TeacherScheduleItem }) {
+export async function TeacherScheduleCard({ item }: { item: TeacherScheduleItem }) {
+  const t = await getT();
   const subjectAndClass = [item.subjectName, item.className].filter(Boolean).join(" - ");
 
   return (
@@ -80,18 +89,18 @@ export function TeacherScheduleCard({ item }: { item: TeacherScheduleItem }) {
         <CardContent className="flex flex-col gap-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-neutral-900">{item.title}</p>
+              <p className="truncate text-sm font-semibold text-neutral-900"><Bdi>{item.title}</Bdi></p>
               {subjectAndClass && (
-                <p className="mt-0.5 truncate text-xs text-neutral-500">{subjectAndClass}</p>
+                <p className="mt-0.5 truncate text-xs text-neutral-500"><Bdi>{subjectAndClass}</Bdi></p>
               )}
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs font-medium text-neutral-500">
-              {formatScheduleDate(item.scheduled_date)}
+              <Bdi>{formatScheduleDate(item.scheduled_date)}</Bdi>
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant="neutral">{TEST_TYPE_LABEL[item.test_type]}</Badge>
-            <Badge variant={STATUS_VARIANT[item.status]}>{STATUS_LABEL[item.status]}</Badge>
+            <Badge variant="neutral">{testTypeLabel(t, item.test_type)}</Badge>
+            <Badge variant={STATUS_VARIANT[item.status]}>{statusLabel(t, item.status)}</Badge>
           </div>
         </CardContent>
       </Card>

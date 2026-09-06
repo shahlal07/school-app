@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/get-translator";
 
 type ActionResult = { error: string | null };
 
@@ -40,7 +41,7 @@ async function createVersion(
   versionNumber?: number
 ): Promise<{ error: string | null; versionNumber: number | null }> {
   const number = versionNumber ?? (await nextVersionNumber(supabase, examPaperId)).value;
-  if (!number) return { error: "Could not determine the next paper version.", versionNumber: null };
+  if (!number) { const t = await getT(); return { error: t("teacher.paperEditor.versionError"), versionNumber: null }; }
   const { error } = await supabase.from("exam_paper_versions").insert({
     exam_paper_id: examPaperId,
     version_number: number,
@@ -57,11 +58,12 @@ async function createVersion(
 
 export async function saveExamPaperDraft(scheduleItemId: string, content: string): Promise<ActionResult> {
   const profile = await requireRole("teacher");
+  const t = await getT();
   const supabase = createClient();
   const trimmed = content.trim();
-  if (!trimmed) return { error: "Paper content cannot be empty." };
+  if (!trimmed) return { error: t("teacher.paperEditor.contentEmpty") };
   const { data: existing } = await supabase.from("exam_papers").select("id,status").eq("schedule_item_id", scheduleItemId).maybeSingle();
-  if (existing && !["not_started", "draft"].includes(existing.status)) return { error: "Submitted papers are locked. Wait for review or use the rejection notes to revise." };
+  if (existing && !["not_started", "draft"].includes(existing.status)) return { error: t("teacher.paperEditor.papersLocked") };
   const { error } = await supabase.from("exam_papers").upsert({ schedule_item_id: scheduleItemId, teacher_id: profile.user_id, status: "draft", content: trimmed }, { onConflict: "schedule_item_id" });
   if (error) return { error: error.message };
   revalidatePath(examPagePath(scheduleItemId));
@@ -70,11 +72,12 @@ export async function saveExamPaperDraft(scheduleItemId: string, content: string
 
 export async function submitExamPaper(scheduleItemId: string, content: string): Promise<ActionResult> {
   const profile = await requireRole("teacher");
+  const t = await getT();
   const supabase = createClient();
   const trimmed = content.trim();
-  if (!trimmed) return { error: "Paper content cannot be empty before submitting." };
+  if (!trimmed) return { error: t("teacher.paperEditor.contentEmptyBeforeSubmit") };
   const { data: existing } = await supabase.from("exam_papers").select("id,status,file_path").eq("schedule_item_id", scheduleItemId).maybeSingle();
-  if (existing && !["not_started", "draft"].includes(existing.status)) return { error: "This paper has already been submitted and is locked until review." };
+  if (existing && !["not_started", "draft"].includes(existing.status)) return { error: t("teacher.paperEditor.alreadySubmittedLocked") };
 
   let paperId = existing?.id;
   if (!paperId) {
@@ -84,7 +87,7 @@ export async function submitExamPaper(scheduleItemId: string, content: string): 
   }
 
   const next = await nextVersionNumber(supabase, paperId);
-  if (next.error || !next.value) return { error: next.error ?? "Could not determine the next paper version." };
+  if (next.error || !next.value) return { error: next.error ?? t("teacher.paperEditor.versionError") };
   const { error } = await supabase.from("exam_papers").update({ status: "submitted", content: trimmed, submitted_at: new Date().toISOString(), current_version: next.value }).eq("id", paperId);
   if (error) return { error: error.message };
   const version = await createVersion(supabase, paperId, profile.user_id, trimmed, existing?.file_path ?? null, existing ? "Revised paper after review" : "Initial submission", next.value);
@@ -100,10 +103,11 @@ export async function submitExamPaper(scheduleItemId: string, content: string): 
 
 export async function submitExamPaperFile(scheduleItemId: string, content: string, formData: FormData): Promise<ActionResult> {
   const profile = await requireRole("teacher");
+  const t = await getT();
   const supabase = createClient();
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { error: "Choose a PDF, Word document, or a photo of the paper." };
-  if (file.size > 15 * 1024 * 1024) return { error: "Paper must be 15 MB or smaller." };
+  if (!(file instanceof File) || file.size === 0) return { error: t("teacher.paperEditor.chooseFile") };
+  if (file.size > 15 * 1024 * 1024) return { error: t("teacher.paperEditor.fileTooLarge") };
   const allowed = [
     "application/pdf",
     "application/msword",
@@ -114,19 +118,19 @@ export async function submitExamPaperFile(scheduleItemId: string, content: strin
     "image/heif",
     "image/webp"
   ];
-  if (!allowed.includes(file.type)) return { error: "Upload a PDF, Word document, or a photo (JPEG/PNG/HEIC/WEBP)." };
+  if (!allowed.includes(file.type)) return { error: t("teacher.paperEditor.fileTypeInvalid") };
   const { data: schedule } = await supabase.from("schedule_items").select("id,subject_id").eq("id", scheduleItemId).maybeSingle();
-  if (!schedule) return { error: "Exam not found." };
+  if (!schedule) return { error: t("teacher.examDetail.examNotFound") };
   const { data: assignment } = await supabase.from("teacher_subjects").select("id").eq("teacher_id", profile.user_id).eq("subject_id", schedule.subject_id).maybeSingle();
-  if (!assignment) return { error: "You are not assigned to this exam." };
+  if (!assignment) return { error: t("teacher.paperEditor.notAssigned") };
   const { data: existing } = await supabase.from("exam_papers").select("id,status,current_version").eq("schedule_item_id", scheduleItemId).maybeSingle();
-  if (existing && !["not_started", "draft"].includes(existing.status)) return { error: "This paper has already been submitted and is locked until review." };
+  if (existing && !["not_started", "draft"].includes(existing.status)) return { error: t("teacher.paperEditor.alreadySubmittedLocked") };
 
   const paperId = existing?.id;
   let next = 1;
   if (paperId) {
     const nextResult = await nextVersionNumber(supabase, paperId);
-    if (nextResult.error || !nextResult.value) return { error: nextResult.error ?? "Could not determine the next paper version." };
+    if (nextResult.error || !nextResult.value) return { error: nextResult.error ?? t("teacher.paperEditor.versionError") };
     next = nextResult.value;
   }
 
@@ -158,12 +162,13 @@ export async function submitExamPaperFile(scheduleItemId: string, content: strin
 
 export async function saveTestResults(scheduleItemId: string, totalMarks: number, results: TestResultInput[]): Promise<ActionResult> {
   const profile = await requireRole("teacher");
+  const t = await getT();
   const supabase = createClient();
-  if (!Number.isFinite(totalMarks) || totalMarks <= 0) return { error: "Total marks must be a positive number." };
+  if (!Number.isFinite(totalMarks) || totalMarks <= 0) return { error: t("teacher.resultsRoster.totalMarksPositive") };
   if (!results.length) return { error: null };
   const rows = results.map((result) => ({ schedule_item_id: scheduleItemId, student_id: result.studentId, total_marks: totalMarks, is_absent: result.isAbsent, marks_obtained: result.isAbsent ? null : result.marksObtained, entered_by: profile.user_id, entered_at: new Date().toISOString() }));
   const invalid = rows.find((row) => row.marks_obtained !== null && (!Number.isFinite(row.marks_obtained) || row.marks_obtained < 0 || row.marks_obtained > totalMarks));
-  if (invalid) return { error: `Marks must be between 0 and ${totalMarks}.` };
+  if (invalid) return { error: `${t("teacher.resultsRoster.marksRangePrefix")} ${totalMarks}.` };
   const { error } = await supabase.from("test_results").upsert(rows, { onConflict: "schedule_item_id,student_id" });
   if (error) return { error: error.message };
   revalidatePath(examPagePath(scheduleItemId));

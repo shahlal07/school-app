@@ -7,6 +7,8 @@ import { classOrderIndex } from "@/components/examination/constants";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { getT } from "@/lib/i18n/get-translator";
+import { Bdi } from "@/components/shared/bdi";
 
 interface ScheduleItemRow {
   id: string;
@@ -70,6 +72,7 @@ const WEAK_TOPIC_LIMIT = 5;
  */
 export default async function CoordinatorDashboardPage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [
     classesRes,
@@ -207,8 +210,8 @@ export default async function CoordinatorDashboardPage() {
         topicId,
         passRate: acc.total > 0 ? Math.round((acc.passed / acc.total) * 100) : 0,
         total: acc.total,
-        subjectName: subject?.name ?? "Unknown subject",
-        className: cls?.name ?? "Unknown class"
+        subjectName: subject?.name ?? t("coordinator.fallback.unknownSubject"),
+        className: cls?.name ?? t("coordinator.fallback.unknownClass")
       };
     })
     .sort((a, b) => a.passRate - b.passRate)
@@ -219,9 +222,9 @@ export default async function CoordinatorDashboardPage() {
   return (
     <main className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Academic Coordinator console</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("coordinator.dashboard.title")}</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Exam operations mission control - schedules, papers, and results across every class.
+          {t("coordinator.dashboard.subtitle")}
         </p>
       </div>
 
@@ -230,7 +233,7 @@ export default async function CoordinatorDashboardPage() {
         <Card>
           <CardContent className="py-5">
             <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-              Upcoming exams
+              {t("coordinator.dashboard.upcomingExams")}
             </p>
             <p className="mt-1 text-2xl font-semibold text-neutral-900">{upcomingExams}</p>
           </CardContent>
@@ -238,18 +241,18 @@ export default async function CoordinatorDashboardPage() {
         <Card>
           <CardContent className="py-5">
             <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-              Missing papers
+              {t("coordinator.dashboard.missingPapers")}
             </p>
             <p className="mt-1 text-2xl font-semibold text-neutral-900">{missingPapers}</p>
             <Link href="/coordinator/papers" className="mt-1 inline-block text-xs text-primary-600 hover:underline">
-              Review queue &rarr;
+              {t("coordinator.dashboard.reviewQueue")} &rarr;
             </Link>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-5">
             <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-              Unmarked results
+              {t("coordinator.dashboard.unmarkedResults")}
             </p>
             <p className="mt-1 text-2xl font-semibold text-neutral-900">{unmarkedResults}</p>
           </CardContent>
@@ -260,11 +263,11 @@ export default async function CoordinatorDashboardPage() {
         {/* Teacher activity summary */}
         <Card>
           <CardHeader>
-            <CardTitle>Teacher activity</CardTitle>
+            <CardTitle>{t("coordinator.dashboard.teacherActivity")}</CardTitle>
           </CardHeader>
           <CardContent>
             {teachers.length === 0 ? (
-              <p className="text-sm text-neutral-500">No teachers yet.</p>
+              <p className="text-sm text-neutral-500">{t("coordinator.dashboard.noTeachersYet")}</p>
             ) : (
               <ul className="flex flex-col gap-2">
                 {teacherActivity.map(({ teacher, scheduled, papersSubmitted }) => (
@@ -272,13 +275,19 @@ export default async function CoordinatorDashboardPage() {
                     key={teacher.id}
                     className="flex items-center justify-between gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm"
                   >
-                    <span className="truncate font-medium text-neutral-800">{teacher.full_name}</span>
+                    <span className="truncate font-medium text-neutral-800"><Bdi>{teacher.full_name}</Bdi></span>
                     <Badge
                       variant={
                         scheduled === 0 ? "neutral" : papersSubmitted === scheduled ? "success" : "warning"
                       }
                     >
-                      {scheduled === 0 ? "No tests yet" : `${papersSubmitted} / ${scheduled} papers`}
+                      {scheduled === 0 ? (
+                        t("coordinator.dashboard.noTestsYet")
+                      ) : (
+                        <>
+                          <Bdi>{`${papersSubmitted} / ${scheduled}`}</Bdi> {t("coordinator.dashboard.papersWord")}
+                        </>
+                      )}
                     </Badge>
                   </li>
                 ))}
@@ -290,20 +299,20 @@ export default async function CoordinatorDashboardPage() {
         {/* Syllabus progress per class/subject */}
         <Card>
           <CardHeader>
-            <CardTitle>Syllabus progress</CardTitle>
+            <CardTitle>{t("coordinator.dashboard.syllabusProgress")}</CardTitle>
           </CardHeader>
           <CardContent>
             {syllabusProgressByClass.length === 0 ? (
               <EmptyState
-                title="Nothing to track yet"
-                description="Once chapters/topics exist and tests are conducted, coverage will show up here."
+                title={t("coordinator.dashboard.nothingToTrackYet")}
+                description={t("coordinator.dashboard.nothingToTrackYetDescription")}
               />
             ) : (
               <ul className="flex flex-col gap-3">
                 {syllabusProgressByClass.map(({ klass, subjectProgress }) => (
                   <li key={klass.id}>
                     <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                      {klass.name}
+                      <Bdi>{klass.name}</Bdi>
                     </p>
                     <div className="flex flex-col gap-1.5">
                       {subjectProgress.map(({ subject, total, covered }) => (
@@ -311,9 +320,9 @@ export default async function CoordinatorDashboardPage() {
                           key={subject.id}
                           className="flex items-center justify-between gap-2 rounded-lg bg-neutral-50 px-3 py-1.5 text-sm"
                         >
-                          <span className="truncate text-neutral-700">{subject.name}</span>
+                          <span className="truncate text-neutral-700"><Bdi>{subject.name}</Bdi></span>
                           <Badge variant={covered === total && total > 0 ? "success" : "neutral"}>
-                            {covered} / {total} topics
+                            <Bdi>{`${covered} / ${total}`}</Bdi> {t("coordinator.dashboard.topicsWord")}
                           </Badge>
                         </div>
                       ))}
@@ -329,17 +338,17 @@ export default async function CoordinatorDashboardPage() {
       {/* At-risk students (weak-topic pass rate) */}
       <Card>
         <CardHeader>
-          <CardTitle>At-risk topics</CardTitle>
+          <CardTitle>{t("coordinator.dashboard.atRiskTopics")}</CardTitle>
         </CardHeader>
         <CardContent>
           {!hasAnyGradedResults ? (
             <EmptyState
-              title="No graded results yet"
-              description="At-risk topics will appear here once teachers start entering test results and enough students have been graded on a topic."
+              title={t("coordinator.dashboard.noGradedResultsYet")}
+              description={t("coordinator.dashboard.noGradedResultsYetDescription")}
             />
           ) : weakTopics.length === 0 ? (
             <p className="text-sm text-neutral-500">
-              No topic currently has a low enough pass rate (or enough graded attempts) to flag.
+              {t("coordinator.dashboard.noWeakTopics")}
             </p>
           ) : (
             <ul className="flex flex-col gap-2">
@@ -350,11 +359,11 @@ export default async function CoordinatorDashboardPage() {
                 >
                   <div className="min-w-0">
                     <p className="truncate font-medium text-neutral-800">
-                      {wt.subjectName} &middot; {wt.className}
+                      <Bdi>{wt.subjectName}</Bdi> &middot; <Bdi>{wt.className}</Bdi>
                     </p>
-                    <p className="text-xs text-neutral-500">{wt.total} graded attempts</p>
+                    <p className="text-xs text-neutral-500"><Bdi>{wt.total}</Bdi> {t("coordinator.dashboard.gradedAttemptsWord")}</p>
                   </div>
-                  <Badge variant={wt.passRate < 50 ? "danger" : "warning"}>{wt.passRate}% pass</Badge>
+                  <Badge variant={wt.passRate < 50 ? "danger" : "warning"}><Bdi>{wt.passRate}%</Bdi> {t("coordinator.dashboard.passWord")}</Badge>
                 </li>
               ))}
             </ul>

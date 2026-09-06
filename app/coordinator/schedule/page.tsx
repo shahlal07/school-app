@@ -4,6 +4,7 @@ import { classOrderIndex } from "@/components/examination/constants";
 import { ScheduleGenerator } from "@/components/examination/schedule-generator";
 import type { ChapterWithTopics } from "@/lib/scheduling/generate-schedule";
 import type { ScheduleItemRow } from "@/components/examination/schedule-list";
+import { getT } from "@/lib/i18n/get-translator";
 
 /**
  * Full read/write mirror of app/owner/schedule/page.tsx. Unlike principal
@@ -17,6 +18,7 @@ import type { ScheduleItemRow } from "@/components/examination/schedule-list";
  */
 export default async function CoordinatorSchedulePage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [classesRes, subjectsRes, chaptersRes, topicsRes, scheduleItemsRes, weekendSettingRes, holidaysRes] =
     await Promise.all([
@@ -90,10 +92,9 @@ export default async function CoordinatorSchedulePage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Schedule generator</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("coordinator.schedule.title")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Generate a test schedule from a subject&apos;s syllabus and view what&apos;s already
-        scheduled.
+        {t("coordinator.schedule.subtitle")}
       </p>
 
       <div className="mt-5">

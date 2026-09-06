@@ -10,7 +10,7 @@ export const DEFAULT_LOCALE: Locale = "en";
  * dictionary must match the English *key structure* exactly, not repeat
  * its literal string values.
  */
-type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
+export type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
 export type Dictionary = Widen<typeof en>;
 
 /**

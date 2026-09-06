@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { submitExamAttendance } from "@/lib/attendance/exam-actions";
+import { useTranslation } from "@/lib/i18n/locale-provider";
+import { Bdi } from "@/components/shared/bdi";
 import type { ExamAttendanceStatus } from "@/types/attendance";
 
 interface Student { id: string; roll_no: string; name: string; }
@@ -20,6 +22,7 @@ const styles: Record<ExamAttendanceStatus, string> = {
 };
 
 export function ExamAttendanceForm({ scheduleItemId, students, existing, submitted }: Props) {
+  const { t } = useTranslation();
   const [statuses, setStatuses] = useState<Record<string, ExamAttendanceStatus>>(() => {
     const initial: Record<string, ExamAttendanceStatus> = {};
     students.forEach((student) => { initial[student.id] = existing[student.id] ?? "present"; });
@@ -57,7 +60,7 @@ export function ExamAttendanceForm({ scheduleItemId, students, existing, submitt
         }))
       });
       if (!result.ok) {
-        setError("Exam attendance could not be saved.");
+        setError(t("teacher.attendance.examForm.errorSaving"));
         return;
       }
       setSaved(true);
@@ -69,21 +72,21 @@ export function ExamAttendanceForm({ scheduleItemId, students, existing, submitt
       <div className="border-b border-neutral-100 px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Exam attendance</p>
-            <p className="mt-1 text-sm text-neutral-600">Use the same roll-number roster. Present by default; mark only exceptions.</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{t("teacher.attendance.examForm.eyebrow")}</p>
+            <p className="mt-1 text-sm text-neutral-600">{t("teacher.attendance.examForm.subtitle")}</p>
           </div>
           <div className="flex gap-2 text-xs font-medium">
-            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">Present {counts.present}</span>
-            <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">Absent {counts.absent}</span>
-            <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">Excused {counts.excused}</span>
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{t("teacher.attendance.presentLabel")} <Bdi>{counts.present}</Bdi></span>
+            <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">{t("teacher.attendance.absentLabel")} <Bdi>{counts.absent}</Bdi></span>
+            <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">{t("teacher.attendance.excusedLabel")} <Bdi>{counts.excused}</Bdi></span>
           </div>
         </div>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search roll number or student name"
+          placeholder={t("teacher.attendance.examForm.searchPlaceholder")}
           className="mt-3 w-full rounded-xl border border-neutral-200 px-3 py-2.5 text-sm outline-none ring-0 placeholder:text-neutral-400 focus:border-primary-400"
-          aria-label="Search exam attendance roster"
+          aria-label={t("teacher.attendance.examForm.searchAriaLabel")}
         />
       </div>
 
@@ -92,8 +95,8 @@ export function ExamAttendanceForm({ scheduleItemId, students, existing, submitt
           const current = statuses[student.id];
           return (
             <div key={student.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
-              <span className="w-10 text-center text-sm font-semibold tabular-nums text-neutral-500">{student.roll_no}</span>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900">{student.name}</span>
+              <span className="w-10 text-center text-sm font-semibold tabular-nums text-neutral-500"><Bdi>{student.roll_no}</Bdi></span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900"><Bdi>{student.name}</Bdi></span>
               <div className="flex gap-1">
                 {STATUS.map((item) => (
                   <button key={item.value} type="button" disabled={saved || isPending} onClick={() => setStatuses((prev) => ({ ...prev, [student.id]: item.value }))} aria-pressed={current === item.value} className={`h-8 min-w-8 rounded-lg border px-1.5 text-xs font-bold transition ${current === item.value ? styles[item.value] : "border-neutral-200 bg-white text-neutral-400 hover:bg-neutral-50"}`}>{item.label}</button>
@@ -102,15 +105,15 @@ export function ExamAttendanceForm({ scheduleItemId, students, existing, submitt
             </div>
           );
         })}
-        {visibleStudents.length === 0 && <div className="px-4 py-8 text-center text-sm text-neutral-500">No students match this search.</div>}
+        {visibleStudents.length === 0 && <div className="px-4 py-8 text-center text-sm text-neutral-500">{t("teacher.attendance.examForm.noMatch")}</div>}
       </div>
 
       <div className="border-t border-neutral-100 px-4 py-4 sm:px-5">
         {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         {saved ? (
-          <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><span className="font-semibold">Exam attendance recorded.</span><span className="ml-2 text-xs">Students marked Absent/Excused are handled separately by result reconciliation.</span></div>
+          <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><span className="font-semibold">{t("teacher.attendance.examForm.submittedMessage")}</span><span className="ml-2 text-xs">{t("teacher.attendance.examForm.submittedSubMessage")}</span></div>
         ) : (
-          <button type="button" onClick={submit} disabled={isPending || students.length === 0} className="w-full rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60">{isPending ? "Submitting exam attendance…" : `Submit exam attendance · ${students.length} students`}</button>
+          <button type="button" onClick={submit} disabled={isPending || students.length === 0} className="w-full rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60">{isPending ? t("teacher.attendance.examForm.submitting") : <>{t("teacher.attendance.examForm.submitPrefix")} · <Bdi>{students.length}</Bdi> {t("teacher.attendance.studentsSuffix")}</>}</button>
         )}
       </div>
     </div>

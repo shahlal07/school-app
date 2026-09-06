@@ -1,8 +1,10 @@
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/get-translator";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Bdi } from "@/components/shared/bdi";
 import type { Class, ClassTeacher, Section, Subject } from "@/types/examination";
 
 interface AssignmentRow {
@@ -11,6 +13,7 @@ interface AssignmentRow {
 }
 
 export default async function TeacherProfilePage() {
+  const t = await getT();
   const profile = await requireRole("teacher");
   const supabase = createClient();
 
@@ -38,19 +41,19 @@ export default async function TeacherProfilePage() {
 
   return (
     <main className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold text-neutral-900">Profile</h1>
+      <h1 className="text-lg font-semibold text-neutral-900">{t("nav.profile")}</h1>
 
       <Card>
         <CardContent className="flex items-center gap-3 py-4">
           <Avatar name={profile.full_name} size="lg" />
           <div className="min-w-0">
-            <p className="truncate text-base font-semibold text-neutral-900">{profile.full_name}</p>
+            <p className="truncate text-base font-semibold text-neutral-900"><Bdi>{profile.full_name}</Bdi></p>
             {profile.username && (
-              <p className="truncate text-sm text-neutral-500">@{profile.username}</p>
+              <p className="truncate text-sm text-neutral-500">@<Bdi>{profile.username}</Bdi></p>
             )}
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <Badge variant="neutral">Teacher</Badge>
-              {homeroomLabel && <Badge variant="info">Class Teacher of {homeroomLabel}</Badge>}
+              <Badge variant="neutral">{t("terms.teacher")}</Badge>
+              {homeroomLabel && <Badge variant="info">{t("teacher.profile.classTeacherOfPrefix")} <Bdi>{homeroomLabel}</Bdi></Badge>}
             </div>
           </div>
         </CardContent>
@@ -58,12 +61,12 @@ export default async function TeacherProfilePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Assigned subjects</CardTitle>
+          <CardTitle>{t("teacher.profile.assignedSubjects")}</CardTitle>
         </CardHeader>
         <CardContent>
           {assignments.length === 0 ? (
             <p className="text-sm text-neutral-500">
-              No subjects assigned yet - contact the school owner.
+              {t("teacher.profile.noSubjects")}
             </p>
           ) : (
             <ul className="flex flex-col gap-2">
@@ -76,9 +79,9 @@ export default async function TeacherProfilePage() {
                     className="flex items-center justify-between rounded-xl bg-neutral-50 px-4 py-2.5"
                   >
                     <span className="text-sm font-medium text-neutral-900">
-                      {subject?.name ?? "Unknown subject"}
+                      <Bdi>{subject?.name ?? t("teacher.profile.unknownSubject")}</Bdi>
                     </span>
-                    <span className="text-sm text-neutral-500">{klass?.name ?? "Unknown class"}</span>
+                    <span className="text-sm text-neutral-500"><Bdi>{klass?.name ?? t("teacher.profile.unknownClass")}</Bdi></span>
                   </li>
                 );
               })}
@@ -88,7 +91,7 @@ export default async function TeacherProfilePage() {
       </Card>
 
       <p className="px-1 text-xs text-neutral-400">
-        Need a password reset or a subject change? Contact the school owner directly.
+        {t("teacher.profile.footerNote")}
       </p>
     </main>
   );

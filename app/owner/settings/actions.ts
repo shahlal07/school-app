@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
+import { getT } from "@/lib/i18n/get-translator";
 
 type ActionResult = { error: string | null };
 
@@ -12,9 +13,10 @@ const SETTINGS_PATH = "/owner/settings";
 
 export async function updatePassPercentage(value: number): Promise<ActionResult> {
   const profile = await requireRole("owner");
+  const t = await getT();
 
   if (!Number.isFinite(value) || value < 1 || value > 100) {
-    return { error: "Pass percentage must be a number between 1 and 100." };
+    return { error: t("owner.settings.invalidPassPercentage") };
   }
 
   const supabase = createClient();

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/lib/i18n/locale-provider";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -20,12 +21,13 @@ export function ConfirmDialog({
   open,
   title,
   description,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   destructive = false,
   onConfirm,
   onClose
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
 
   const handleConfirm = async () => {
@@ -41,14 +43,14 @@ export function ConfirmDialog({
     <Dialog open={open} onClose={onClose} title={title} description={description}>
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button variant="ghost" onClick={onClose} disabled={submitting}>
-          {cancelLabel}
+          {cancelLabel ?? t("common.cancel")}
         </Button>
         <Button
           variant={destructive ? "destructive" : "primary"}
           onClick={handleConfirm}
           loading={submitting}
         >
-          {confirmLabel}
+          {confirmLabel ?? t("system.confirm")}
         </Button>
       </div>
     </Dialog>

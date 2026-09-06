@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAnyRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
+import { getT } from "@/lib/i18n/get-translator";
 
 type ActionResult = { error: string | null };
 
@@ -23,6 +24,7 @@ const COORDINATOR_ALERTS_PATH = "/coordinator/alerts";
 export async function resolveAlert(alertId: string): Promise<ActionResult> {
   const profile = await requireAnyRole(["owner", "academic_coordinator"]);
   const supabase = createClient();
+  const t = await getT();
 
   const { error } = await supabase
     .from("alerts")
@@ -34,7 +36,7 @@ export async function resolveAlert(alertId: string): Promise<ActionResult> {
     .eq("id", alertId);
 
   if (error) {
-    return { error: error.message };
+    return { error: error.message ?? t("common.somethingWentWrong") };
   }
 
   await logAudit({

@@ -22,6 +22,7 @@ import {
   PreviewScheduleList,
   type ScheduleItemRow
 } from "@/components/examination/schedule-list";
+import { useTranslation } from "@/lib/i18n/locale-provider";
 
 export interface ScheduleGeneratorProps {
   classes: Class[];
@@ -36,7 +37,15 @@ export interface ScheduleGeneratorProps {
   readOnly?: boolean;
 }
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_LABEL_KEYS = [
+  "coordinator.scheduleGenerator.daySun",
+  "coordinator.scheduleGenerator.dayMon",
+  "coordinator.scheduleGenerator.dayTue",
+  "coordinator.scheduleGenerator.dayWed",
+  "coordinator.scheduleGenerator.dayThu",
+  "coordinator.scheduleGenerator.dayFri",
+  "coordinator.scheduleGenerator.daySat"
+];
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -61,6 +70,7 @@ function GeneratorForm({
 }: GeneratorFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [startDate, setStartDate] = useState(todayISO());
   const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set(defaultTestDaysOfWeek));
@@ -128,7 +138,7 @@ function GeneratorForm({
       return;
     }
 
-    toast(`${result.count ?? preview.length} schedule item(s) created`, "success");
+    toast(`${result.count ?? preview.length} ${t("coordinator.scheduleGenerator.itemsCreatedToastSuffix")}`, "success");
     setPreview(null);
     router.refresh();
   };
@@ -145,16 +155,16 @@ function GeneratorForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Generate schedule</CardTitle>
+        <CardTitle>{t("coordinator.scheduleGenerator.generateSchedule")}</CardTitle>
         <p className="mt-1 text-sm text-neutral-500">
-          {chapters.length} {chapters.length === 1 ? "chapter" : "chapters"} in the syllabus for{" "}
+          {chapters.length} {chapters.length === 1 ? t("coordinator.scheduleGenerator.chapterSingular") : t("coordinator.scheduleGenerator.chapterPlural")} {t("coordinator.scheduleGenerator.inSyllabusFor")}{" "}
           {subject.name}.
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <Input
           type="date"
-          label="Start date"
+          label={t("coordinator.scheduleGenerator.startDate")}
           value={startDate}
           onChange={(e) => {
             setStartDate(e.target.value);
@@ -163,13 +173,13 @@ function GeneratorForm({
         />
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-neutral-700">Eligible test days</span>
+          <span className="text-sm font-medium text-neutral-700">{t("coordinator.scheduleGenerator.eligibleTestDays")}</span>
           <div className="grid grid-cols-7 gap-1">
-            {DAY_LABELS.map((label, day) => {
+            {DAY_LABEL_KEYS.map((labelKey, day) => {
               const isSelected = selectedDays.has(day);
               return (
                 <button
-                  key={label}
+                  key={labelKey}
                   type="button"
                   aria-pressed={isSelected}
                   onClick={() => toggleDay(day)}
@@ -179,21 +189,20 @@ function GeneratorForm({
                       : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
                   }`}
                 >
-                  {label}
+                  {t(labelKey)}
                 </button>
               );
             })}
           </div>
           {!daysValid && (
-            <p className="text-xs text-danger-600">Select at least one day of the week.</p>
+            <p className="text-xs text-danger-600">{t("coordinator.scheduleGenerator.selectAtLeastOneDay")}</p>
           )}
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-neutral-700">Holidays / skip dates</span>
+          <span className="text-sm font-medium text-neutral-700">{t("coordinator.scheduleGenerator.holidaysSkipDates")}</span>
           <p className="text-xs text-neutral-500">
-            Pre-filled from the school calendar (Coordinator → Calendar). Add or remove for this
-            run only - it won&apos;t change the calendar itself.
+            {t("coordinator.scheduleGenerator.holidaysHelp")}
           </p>
           <div className="flex flex-wrap items-end gap-2">
             <input
@@ -204,7 +213,7 @@ function GeneratorForm({
               aria-label="Holiday date"
             />
             <Button type="button" variant="secondary" size="md" onClick={addHoliday}>
-              Add
+              {t("common.add")}
             </Button>
           </div>
           {holidays.length > 0 && (
@@ -218,7 +227,7 @@ function GeneratorForm({
                   <button
                     type="button"
                     onClick={() => removeHoliday(date)}
-                    aria-label={`Remove holiday ${date}`}
+                    aria-label={`${t("coordinator.scheduleGenerator.removeHoliday")} ${date}`}
                     className="rounded-full p-0.5 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800"
                   >
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
@@ -246,7 +255,7 @@ function GeneratorForm({
             }}
             className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
           />
-          Include a chapter test after each chapter
+          {t("coordinator.scheduleGenerator.includeChapterTest")}
         </label>
 
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -257,7 +266,7 @@ function GeneratorForm({
             disabled={!daysValid}
             className="sm:flex-1"
           >
-            Preview
+            {t("coordinator.scheduleGenerator.preview")}
           </Button>
           <Button
             type="button"
@@ -267,19 +276,19 @@ function GeneratorForm({
             loading={saving}
             className="sm:flex-1"
           >
-            Save schedule
+            {t("coordinator.scheduleGenerator.saveSchedule")}
           </Button>
         </div>
 
         {preview && (
           <div className="rounded-xl border border-neutral-200">
             <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-neutral-900">Preview</span>
-              <Badge variant="info">{preview.length} items</Badge>
+              <span className="text-sm font-semibold text-neutral-900">{t("coordinator.scheduleGenerator.preview")}</span>
+              <Badge variant="info">{preview.length} {t("coordinator.scheduleGenerator.itemsWord")}</Badge>
             </div>
             <div className="max-h-96 overflow-y-auto px-4">
               {preview.length === 0 ? (
-                <p className="py-4 text-sm text-neutral-500">Nothing to schedule.</p>
+                <p className="py-4 text-sm text-neutral-500">{t("coordinator.scheduleGenerator.nothingToSchedule")}</p>
               ) : (
                 <PreviewScheduleList items={preview} />
               )}
@@ -290,11 +299,11 @@ function GeneratorForm({
 
       <ConfirmDialog
         open={confirmingSave}
-        title="Schedule items already exist"
-        description={`${subject.name} already has ${existingItems.length} scheduled item(s). Saving will add ${
+        title={t("coordinator.scheduleGenerator.alreadyExistsTitle")}
+        description={`${subject.name} ${t("coordinator.scheduleGenerator.alreadyExistsDescriptionPart1")} ${existingItems.length} ${t("coordinator.scheduleGenerator.alreadyExistsDescriptionPart2")} ${
           preview?.length ?? 0
-        } more on top of them - existing items are not touched.`}
-        confirmLabel="Save anyway"
+        } ${t("coordinator.scheduleGenerator.alreadyExistsDescriptionPart3")}`}
+        confirmLabel={t("coordinator.scheduleGenerator.saveAnyway")}
         onClose={() => setConfirmingSave(false)}
         onConfirm={doSave}
       />
@@ -311,6 +320,7 @@ function ScheduleGeneratorInner({
   defaultHolidays = [],
   readOnly = false
 }: ScheduleGeneratorProps) {
+  const { t } = useTranslation();
   const [selectedClassId, setSelectedClassId] = useState<string | undefined>(classes[0]?.id);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | undefined>(undefined);
 
@@ -330,8 +340,8 @@ function ScheduleGeneratorInner({
   if (classes.length === 0) {
     return (
       <EmptyState
-        title="No classes found"
-        description="Classes need to be seeded before schedules can be generated."
+        title={t("coordinator.scheduleGenerator.noClassesFound")}
+        description={t("coordinator.scheduleGenerator.noClassesFoundDescription")}
       />
     );
   }
@@ -369,8 +379,8 @@ function ScheduleGeneratorInner({
 
       {subjects.length === 0 ? (
         <EmptyState
-          title="No subjects for this class"
-          description="Subjects for this class have not been seeded yet."
+          title={t("coordinator.scheduleGenerator.noSubjectsForClass")}
+          description={t("coordinator.scheduleGenerator.noSubjectsForClassDescription")}
         />
       ) : (
         <div className="flex flex-wrap gap-1.5">
@@ -396,7 +406,7 @@ function ScheduleGeneratorInner({
                       isSelected ? "text-white/80" : "text-neutral-400"
                     }`}
                   >
-                    (no syllabus)
+                    {t("coordinator.scheduleGenerator.noSyllabusBadge")}
                   </span>
                 )}
               </button>
@@ -410,7 +420,7 @@ function ScheduleGeneratorInner({
           {selectedExistingItems.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Already scheduled for {selectedSubject.name}</CardTitle>
+                <CardTitle>{t("coordinator.scheduleGenerator.alreadyScheduledFor")} {selectedSubject.name}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ExistingScheduleList items={selectedExistingItems} />
@@ -421,14 +431,14 @@ function ScheduleGeneratorInner({
           {readOnly ? (
             selectedExistingItems.length === 0 && (
               <EmptyState
-                title="Nothing scheduled yet"
-                description={`No tests are scheduled for ${selectedSubject.name} yet. Generating a schedule happens on the coordinator side.`}
+                title={t("coordinator.scheduleGenerator.nothingScheduledYet")}
+                description={`${t("coordinator.scheduleGenerator.nothingScheduledYetDescriptionPart1")} ${selectedSubject.name} ${t("coordinator.scheduleGenerator.nothingScheduledYetDescriptionPart2")}`}
               />
             )
           ) : selectedChapters.length === 0 ? (
             <EmptyState
-              title="No syllabus yet"
-              description={`${selectedSubject.name} has no chapters or topics set up, so a schedule can't be generated for it yet. Add chapters and topics in the syllabus manager first.`}
+              title={t("coordinator.scheduleGenerator.noSyllabusYet")}
+              description={`${selectedSubject.name} ${t("coordinator.scheduleGenerator.noSyllabusYetDescriptionPart2")}`}
             />
           ) : (
             <GeneratorForm

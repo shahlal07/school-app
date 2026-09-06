@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import type { Profile } from "@/types/database";
+import { useTranslation } from "@/lib/i18n/locale-provider";
 
 import { assignClassTeacher, removeClassTeacher } from "./actions";
 
@@ -33,6 +34,7 @@ export function AssignClassTeacherDialog({
   onChanged
 }: AssignClassTeacherDialogProps) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -53,7 +55,7 @@ export function AssignClassTeacherDialog({
       return;
     }
 
-    toast("Class teacher assigned", "success");
+    toast(t("owner.classes.assignedToast"), "success");
     setSelectedTeacherId("");
     onChanged();
   }
@@ -69,7 +71,7 @@ export function AssignClassTeacherDialog({
       return;
     }
 
-    toast("Class teacher removed", "success");
+    toast(t("owner.classes.removedToast"), "success");
     onChanged();
   }
 
@@ -77,13 +79,13 @@ export function AssignClassTeacherDialog({
     <Dialog
       open={!!target}
       onClose={resetAndClose}
-      title={`Class teacher for ${target?.classLabel ?? ""}`}
-      description="This teacher will be shown as the homeroom / class teacher for this section."
+      title={`${t("owner.classes.dialogTitlePrefix")} ${target?.classLabel ?? ""}`}
+      description={t("owner.classes.dialogDescription")}
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-neutral-700" htmlFor="assign-class-teacher">
-            Teacher
+            {t("nav.teachers")}
           </label>
           <select
             id="assign-class-teacher"
@@ -91,11 +93,11 @@ export function AssignClassTeacherDialog({
             onChange={(event) => setSelectedTeacherId(event.target.value)}
             className={selectClasses}
           >
-            <option value="">Select a teacher</option>
+            <option value="">{t("owner.classes.selectATeacher")}</option>
             {teachers.map((teacher) => (
               <option key={teacher.user_id} value={teacher.user_id}>
                 {teacher.full_name}
-                {teacher.user_id === target?.currentTeacherId ? " (current)" : ""}
+                {teacher.user_id === target?.currentTeacherId ? ` (${t("owner.classes.current")})` : ""}
               </option>
             ))}
           </select>
@@ -104,7 +106,7 @@ export function AssignClassTeacherDialog({
         <div className="flex items-center justify-between gap-2 pt-2">
           {target?.currentTeacherId ? (
             <Button variant="destructive" size="sm" loading={removing} onClick={handleRemove}>
-              Remove class teacher
+              {t("owner.classes.removeClassTeacher")}
             </Button>
           ) : (
             <span />
@@ -112,10 +114,10 @@ export function AssignClassTeacherDialog({
 
           <div className="flex gap-2">
             <Button type="button" variant="ghost" onClick={resetAndClose}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="button" onClick={handleAssign} loading={saving} disabled={!selectedTeacherId}>
-              Save
+              {t("common.save")}
             </Button>
           </div>
         </div>

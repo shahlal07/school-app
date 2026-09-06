@@ -9,6 +9,7 @@ import { logAudit } from "@/lib/audit";
 import { usernameToSyntheticEmail, usernameValidationError } from "@/lib/auth/username";
 import { STAFF_ROLES, isStaffRole } from "@/lib/auth/roles";
 import type { StaffRole } from "@/types/database";
+import { getT } from "@/lib/i18n/get-translator";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -26,14 +27,15 @@ export async function createTeacherAccount(
   role: StaffRole = "teacher"
 ): Promise<{ error: string | null }> {
   const owner = await requireRole("owner");
+  const t = await getT();
 
   const trimmedName = fullName.trim();
   if (!trimmedName) {
-    return { error: "Full name is required." };
+    return { error: t("owner.teachers.fullNameRequired") };
   }
 
   if (!isStaffRole(role)) {
-    return { error: "Invalid role." };
+    return { error: t("owner.teachers.invalidRole") };
   }
 
   const usernameError = usernameValidationError(username);
@@ -43,7 +45,7 @@ export async function createTeacherAccount(
   const trimmedUsername = username.trim();
 
   if (password.length < MIN_PASSWORD_LENGTH) {
-    return { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` };
+    return { error: `${t("owner.teachers.passwordMinLengthPrefix")} ${MIN_PASSWORD_LENGTH} ${t("owner.teachers.passwordMinLengthSuffix")}` };
   }
 
   const supabase = createClient();
@@ -54,7 +56,7 @@ export async function createTeacherAccount(
     .maybeSingle();
 
   if (existing) {
-    return { error: `Username "${trimmedUsername}" is already taken.` };
+    return { error: `${t("owner.teachers.usernameTakenPrefix")} "${trimmedUsername}" ${t("owner.teachers.usernameTakenSuffix")}` };
   }
 
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
@@ -64,7 +66,7 @@ export async function createTeacherAccount(
   });
 
   if (error || !data.user) {
-    return { error: error?.message ?? "Unable to create account." };
+    return { error: error?.message ?? t("owner.teachers.unableToCreateAccount") };
   }
 
   const { error: profileError } = await supabase.from("profiles").insert({
@@ -107,6 +109,7 @@ export async function assignTeacherSubject(
 ): Promise<{ error: string | null }> {
   const owner = await requireRole("owner");
   const supabase = createClient();
+  const t = await getT();
 
   const { data, error } = await supabase
     .from("teacher_subjects")
@@ -116,7 +119,7 @@ export async function assignTeacherSubject(
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "This teacher is already assigned to that subject." };
+      return { error: t("owner.teachers.alreadyAssignedToSubject") };
     }
     return { error: error.message };
   }
@@ -166,9 +169,10 @@ export async function resetTeacherPassword(
   newPassword: string
 ): Promise<{ error: string | null }> {
   const owner = await requireRole("owner");
+  const t = await getT();
 
   if (newPassword.length < MIN_PASSWORD_LENGTH) {
-    return { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` };
+    return { error: `${t("owner.teachers.passwordMinLengthPrefix")} ${MIN_PASSWORD_LENGTH} ${t("owner.teachers.passwordMinLengthSuffix")}` };
   }
 
   const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {

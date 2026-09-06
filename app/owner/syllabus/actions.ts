@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/get-translator";
 
 type ActionResult = { error: string | null };
 
@@ -19,10 +20,11 @@ export async function updateSubject(
 ): Promise<ActionResult> {
   await requireRole("academic_coordinator");
   const supabase = createClient();
+  const t = await getT();
 
   const trimmedName = updates.name?.trim();
   if (updates.name !== undefined && !trimmedName) {
-    return { error: "Subject name cannot be empty." };
+    return { error: t("owner.syllabus.subjectNameEmpty") };
   }
 
   const { error } = await supabase
@@ -65,10 +67,11 @@ export async function createChapter(
 ): Promise<ActionResult> {
   await requireRole("academic_coordinator");
   const supabase = createClient();
+  const t = await getT();
 
   const name = input.name.trim();
   if (!name) {
-    return { error: "Chapter name cannot be empty." };
+    return { error: t("owner.syllabus.chapterNameEmpty") };
   }
 
   const { data: existing, error: fetchError } = await supabase
@@ -106,10 +109,11 @@ export async function updateChapter(
 ): Promise<ActionResult> {
   await requireRole("academic_coordinator");
   const supabase = createClient();
+  const t = await getT();
 
   const trimmedName = updates.name?.trim();
   if (updates.name !== undefined && !trimmedName) {
-    return { error: "Chapter name cannot be empty." };
+    return { error: t("owner.syllabus.chapterNameEmpty") };
   }
 
   const { error } = await supabase
@@ -150,6 +154,7 @@ export async function reorderChapter(
 ): Promise<ActionResult> {
   await requireRole("academic_coordinator");
   const supabase = createClient();
+  const t = await getT();
 
   const { data: chapter, error: chapterError } = await supabase
     .from("chapters")
@@ -158,7 +163,7 @@ export async function reorderChapter(
     .single();
 
   if (chapterError || !chapter) {
-    return { error: chapterError?.message ?? "Chapter not found." };
+    return { error: chapterError?.message ?? t("owner.syllabus.chapterNotFound") };
   }
 
   const { data: siblings, error: siblingsError } = await supabase
@@ -168,7 +173,7 @@ export async function reorderChapter(
     .order("order_index", { ascending: true });
 
   if (siblingsError || !siblings) {
-    return { error: siblingsError?.message ?? "Unable to load chapters." };
+    return { error: siblingsError?.message ?? t("owner.syllabus.unableToLoadChapters") };
   }
 
   const index = siblings.findIndex((c) => c.id === chapterId);
@@ -208,10 +213,11 @@ export async function createTopic(
 ): Promise<ActionResult> {
   await requireRole("academic_coordinator");
   const supabase = createClient();
+  const t = await getT();
 
   const name = input.name.trim();
   if (!name) {
-    return { error: "Topic name cannot be empty." };
+    return { error: t("owner.syllabus.topicNameEmpty") };
   }
 
   const { data: existing, error: fetchError } = await supabase
@@ -249,10 +255,11 @@ export async function updateTopic(
 ): Promise<ActionResult> {
   await requireRole("academic_coordinator");
   const supabase = createClient();
+  const t = await getT();
 
   const trimmedName = updates.name?.trim();
   if (updates.name !== undefined && !trimmedName) {
-    return { error: "Topic name cannot be empty." };
+    return { error: t("owner.syllabus.topicNameEmpty") };
   }
 
   const { error } = await supabase
@@ -293,6 +300,7 @@ export async function reorderTopic(
 ): Promise<ActionResult> {
   await requireRole("academic_coordinator");
   const supabase = createClient();
+  const t = await getT();
 
   const { data: topic, error: topicError } = await supabase
     .from("topics")
@@ -301,7 +309,7 @@ export async function reorderTopic(
     .single();
 
   if (topicError || !topic) {
-    return { error: topicError?.message ?? "Topic not found." };
+    return { error: topicError?.message ?? t("owner.syllabus.topicNotFound") };
   }
 
   const { data: siblings, error: siblingsError } = await supabase
@@ -311,7 +319,7 @@ export async function reorderTopic(
     .order("order_index", { ascending: true });
 
   if (siblingsError || !siblings) {
-    return { error: siblingsError?.message ?? "Unable to load topics." };
+    return { error: siblingsError?.message ?? t("owner.syllabus.unableToLoadTopics") };
   }
 
   const index = siblings.findIndex((t) => t.id === topicId);

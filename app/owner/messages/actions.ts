@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireAnyRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/get-translator";
 
 type ActionResult = { error: string | null };
 
@@ -22,13 +23,14 @@ export async function sendMessageToTeacher(
   body: string
 ): Promise<ActionResult> {
   const profile = await requireAnyRole(["owner", "academic_coordinator"]);
+  const t = await getT();
 
   const trimmedBody = body.trim();
   if (!trimmedBody) {
-    return { error: "Message cannot be empty." };
+    return { error: t("owner.messages.emptyMessage") };
   }
   if (!recipientUserId) {
-    return { error: "No teacher selected." };
+    return { error: t("owner.messages.noTeacherSelected") };
   }
 
   const supabase = createClient();
@@ -55,10 +57,11 @@ export async function sendMessageToTeacher(
  */
 export async function sendBroadcastToTeachers(body: string): Promise<ActionResult> {
   const profile = await requireAnyRole(["owner", "academic_coordinator"]);
+  const t = await getT();
 
   const trimmedBody = body.trim();
   if (!trimmedBody) {
-    return { error: "Message cannot be empty." };
+    return { error: t("owner.messages.emptyMessage") };
   }
 
   const supabase = createClient();
@@ -72,7 +75,7 @@ export async function sendBroadcastToTeachers(body: string): Promise<ActionResul
     return { error: teachersError.message };
   }
   if (!teachers || teachers.length === 0) {
-    return { error: "There are no teachers to message yet." };
+    return { error: t("owner.messages.noTeachersToMessage") };
   }
 
   const broadcastId = crypto.randomUUID();

@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AlertCard } from "@/components/examination/alert-card";
 import type { AlertRow, AlertWithTeacher } from "@/components/examination/alert-types";
+import { getT } from "@/lib/i18n/get-translator";
+import { Bdi } from "@/components/shared/bdi";
 
 interface StatCard {
   label: string;
@@ -91,6 +93,28 @@ function formatDate(iso: string): string {
 export default async function PrincipalHomePage() {
   const profile = await requireAnyRole(["owner", "principal"]);
   const supabase = createClient();
+  const t = await getT();
+
+  function scheduleStatusLabel(status: string): string {
+    switch (status) {
+      case "upcoming":
+        return t("principal.scheduleStatus.upcoming");
+      case "skipped":
+        return t("principal.scheduleStatus.skipped");
+      case "rescheduled":
+        return t("principal.scheduleStatus.rescheduled");
+      case "scheduled":
+        return t("status.scheduled");
+      case "draft":
+        return t("status.draft");
+      case "completed":
+        return t("status.completed");
+      case "cancelled":
+        return t("status.cancelled");
+      default:
+        return status;
+    }
+  }
 
   const now = new Date();
   const todayIso = now.toISOString().slice(0, 10);
@@ -241,21 +265,21 @@ export default async function PrincipalHomePage() {
   const resultFinalizationBacklog = resultSubmissions.filter((r) => r.status === "submitted").length;
 
   const backlogStats: { label: string; value: number; href: string }[] = [
-    { label: "Papers awaiting approval", value: paperApprovalBacklog, href: "/principal/papers" },
-    { label: "Approved, not yet printed", value: printBacklog, href: "/principal/papers" },
-    { label: "Students at risk", value: studentsAtRiskCount, href: "/principal/alerts" },
-    { label: "Teachers behind", value: teachersBehindCount, href: "/principal/alerts" },
-    { label: "Results awaiting finalization", value: resultFinalizationBacklog, href: "/principal/results" }
+    { label: t("ownerDashboard.papersAwaitingApproval"), value: paperApprovalBacklog, href: "/principal/papers" },
+    { label: t("ownerDashboard.approvedNotPrinted"), value: printBacklog, href: "/principal/papers" },
+    { label: t("ownerDashboard.studentsAtRisk"), value: studentsAtRiskCount, href: "/principal/alerts" },
+    { label: t("ownerDashboard.teachersBehind"), value: teachersBehindCount, href: "/principal/alerts" },
+    { label: t("ownerDashboard.resultsAwaitingFinalization"), value: resultFinalizationBacklog, href: "/principal/results" }
   ];
 
   // "Active teachers" is shown as a plain stat, not a link - inviting
   // teachers and managing accounts is owner-only system administration and
   // there is no /principal/teachers page to send this card to.
   const statCards: StatCard[] = [
-    { label: "Classes", value: totalClasses, href: "/principal/syllabus" },
-    { label: "Active subjects", value: totalActiveSubjects, href: "/principal/syllabus" },
-    { label: "Active students", value: totalActiveStudents, href: "/principal/students" },
-    { label: "Active teachers", value: totalActiveTeachers }
+    { label: t("ownerDashboard.classes"), value: totalClasses, href: "/principal/syllabus" },
+    { label: t("ownerDashboard.activeSubjects"), value: totalActiveSubjects, href: "/principal/syllabus" },
+    { label: t("ownerDashboard.activeStudents"), value: totalActiveStudents, href: "/principal/students" },
+    { label: t("ownerDashboard.activeTeachers"), value: totalActiveTeachers }
   ];
 
   // Only the students prompt is actionable by a principal - inviting a
@@ -267,11 +291,13 @@ export default async function PrincipalHomePage() {
     <main className="p-4 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">Welcome back, {profile.full_name}</h1>
-          <p className="mt-1 text-sm text-neutral-500">What needs your attention today.</p>
+          <h1 className="text-xl font-semibold text-neutral-900">
+            {t("principal.dashboard.welcomeBack")}, <Bdi>{profile.full_name}</Bdi>
+          </h1>
+          <p className="mt-1 text-sm text-neutral-500">{t("ownerDashboard.subtitle")}</p>
         </div>
         <Link href="/principal/academic-health" className={secondaryLinkButtonClasses}>
-          Academic health score &rarr;
+          {t("ownerDashboard.academicHealthScore")} &rarr;
         </Link>
       </div>
 
@@ -279,13 +305,13 @@ export default async function PrincipalHomePage() {
           leads the page. */}
       <Card className="mt-5">
         <CardHeader>
-          <CardTitle>Urgent dangers</CardTitle>
+          <CardTitle>{t("intelligence.urgentDangers")}</CardTitle>
         </CardHeader>
         <CardContent>
           {urgentDangersShown.length === 0 ? (
             <EmptyState
-              title="Nothing urgent right now"
-              description="No open alerts are marked urgent or critical."
+              title={t("intelligence.nothingUrgent")}
+              description={t("intelligence.noOpenAlerts")}
             />
           ) : (
             <>
@@ -301,7 +327,11 @@ export default async function PrincipalHomePage() {
                   href="/principal/alerts"
                   className="mt-3 inline-block text-sm font-medium text-primary-600 hover:underline"
                 >
-                  {urgentDangersRemaining} more urgent alert{urgentDangersRemaining === 1 ? "" : "s"} &rarr;
+                  <Bdi>{urgentDangersRemaining}</Bdi>{" "}
+                  {urgentDangersRemaining === 1
+                    ? t("principal.dashboard.moreUrgentAlert")
+                    : t("principal.dashboard.moreUrgentAlerts")}{" "}
+                  &rarr;
                 </Link>
               )}
             </>
@@ -313,17 +343,21 @@ export default async function PrincipalHomePage() {
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         {(
           [
-            { label: "Today", items: examsToday },
-            { label: "Tomorrow", items: examsTomorrow }
+            { titleKey: "ownerDashboard.examsToday", emptyKey: "ownerDashboard.noExamsToday", items: examsToday },
+            {
+              titleKey: "ownerDashboard.examsTomorrow",
+              emptyKey: "ownerDashboard.noExamsTomorrow",
+              items: examsTomorrow
+            }
           ] as const
-        ).map(({ label, items }) => (
-          <Card key={label}>
+        ).map(({ titleKey, emptyKey, items }) => (
+          <Card key={titleKey}>
             <CardHeader>
-              <CardTitle>Exams {label.toLowerCase()}</CardTitle>
+              <CardTitle>{t(titleKey)}</CardTitle>
             </CardHeader>
             <CardContent>
               {items.length === 0 ? (
-                <p className="text-sm text-neutral-500">No exams scheduled {label.toLowerCase()}.</p>
+                <p className="text-sm text-neutral-500">{t(emptyKey)}</p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {items.map((item) => (
@@ -332,15 +366,22 @@ export default async function PrincipalHomePage() {
                       className="flex items-center justify-between gap-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-neutral-900">{item.title}</p>
+                        <p className="truncate font-medium text-neutral-900">
+                          <Bdi>{item.title}</Bdi>
+                        </p>
                         <p className="text-xs text-neutral-500">
-                          {classNameById.get(item.class_id) ?? "Unknown class"} &middot;{" "}
-                          {subjectNameById.get(item.subject_id) ?? "Unknown subject"} &middot;{" "}
-                          {formatDate(item.scheduled_date)}
+                          <Bdi>
+                            {classNameById.get(item.class_id) ?? t("principal.common.unknownClass")}
+                          </Bdi>{" "}
+                          &middot;{" "}
+                          <Bdi>
+                            {subjectNameById.get(item.subject_id) ?? t("principal.common.unknownSubject")}
+                          </Bdi>{" "}
+                          &middot; <Bdi>{formatDate(item.scheduled_date)}</Bdi>
                         </p>
                       </div>
                       <Badge variant={scheduleStatusBadgeVariant[item.status] ?? "neutral"}>
-                        {item.status}
+                        {scheduleStatusLabel(item.status)}
                       </Badge>
                     </li>
                   ))}
@@ -362,7 +403,7 @@ export default async function PrincipalHomePage() {
                     stat.value > 0 ? "text-neutral-900" : "text-neutral-400"
                   }`}
                 >
-                  {stat.value}
+                  <Bdi>{stat.value}</Bdi>
                 </p>
                 <p className="mt-1 text-sm text-neutral-500">{stat.label}</p>
               </CardContent>
@@ -378,7 +419,9 @@ export default async function PrincipalHomePage() {
             <Link key={stat.label} href={stat.href} className="block">
               <Card className="h-full transition-shadow hover:shadow-md">
                 <CardContent className="py-5">
-                  <p className="text-2xl font-semibold text-neutral-900">{stat.value}</p>
+                  <p className="text-2xl font-semibold text-neutral-900">
+                    <Bdi>{stat.value}</Bdi>
+                  </p>
                   <p className="mt-1 text-sm text-neutral-500">{stat.label}</p>
                 </CardContent>
               </Card>
@@ -386,7 +429,9 @@ export default async function PrincipalHomePage() {
           ) : (
             <Card key={stat.label} className="h-full">
               <CardContent className="py-5">
-                <p className="text-2xl font-semibold text-neutral-900">{stat.value}</p>
+                <p className="text-2xl font-semibold text-neutral-900">
+                  <Bdi>{stat.value}</Bdi>
+                </p>
                 <p className="mt-1 text-sm text-neutral-500">{stat.label}</p>
               </CardContent>
             </Card>
@@ -397,25 +442,26 @@ export default async function PrincipalHomePage() {
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Syllabus coverage</CardTitle>
+            <CardTitle>{t("ownerDashboard.syllabusCoverage")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold text-neutral-900">
-              {subjectsWithSyllabus} of {totalSubjects}
+              <Bdi>{subjectsWithSyllabus}</Bdi> of <Bdi>{totalSubjects}</Bdi>
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              subjects have a syllabus started.
+              {t("ownerDashboard.subjectsHaveSyllabus")}
               {subjectsWithoutSyllabus > 0 && (
                 <>
                   {" "}
-                  {subjectsWithoutSyllabus} subject
-                  {subjectsWithoutSyllabus === 1 ? "" : "s"} still need
-                  {subjectsWithoutSyllabus === 1 ? "s" : ""} chapters added.
+                  <Bdi>{subjectsWithoutSyllabus}</Bdi>{" "}
+                  {subjectsWithoutSyllabus === 1
+                    ? t("principal.dashboard.subjectNeedsChapters")
+                    : t("principal.dashboard.subjectsNeedChapters")}
                 </>
               )}
             </p>
             <Link href="/principal/syllabus" className={`${secondaryLinkButtonClasses} mt-4`}>
-              View syllabus
+              {t("principal.dashboard.viewSyllabus")}
             </Link>
           </CardContent>
         </Card>
@@ -423,17 +469,17 @@ export default async function PrincipalHomePage() {
         {showSetupPrompts && (
           <Card>
             <CardHeader>
-              <CardTitle>Get set up</CardTitle>
+              <CardTitle>{t("ownerDashboard.getSetUp")}</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="flex flex-col gap-3">
                 <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3">
                   <div>
-                    <p className="text-sm font-medium text-neutral-900">Add students</p>
-                    <p className="text-sm text-neutral-500">The student roster is empty.</p>
+                    <p className="text-sm font-medium text-neutral-900">{t("ownerDashboard.addStudents")}</p>
+                    <p className="text-sm text-neutral-500">{t("ownerDashboard.rosterEmpty")}</p>
                   </div>
                   <Link href="/principal/students" className={linkButtonClasses}>
-                    Add students
+                    {t("ownerDashboard.addStudents")}
                   </Link>
                 </li>
               </ul>

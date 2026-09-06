@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
+import { getT } from "@/lib/i18n/get-translator";
 
 type Result = { error: string | null };
 
@@ -31,6 +32,7 @@ function revalidateCalendar(): void {
 export async function createCalendarOverride(formData: FormData): Promise<Result> {
   const profile = await requireRole("academic_coordinator");
   const supabase = createClient();
+  const t = await getT();
 
   const date = String(formData.get("date") ?? "").trim();
   const dayStatus = String(formData.get("dayStatus") ?? "").trim();
@@ -38,19 +40,19 @@ export async function createCalendarOverride(formData: FormData): Promise<Result
   const name = String(formData.get("name") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
-  if (!date) return { error: "Date is required." };
-  if (!name) return { error: "Name is required." };
+  if (!date) return { error: t("coordinator.calendar.dateRequired") };
+  if (!name) return { error: t("coordinator.calendar.nameRequired") };
   if (dayStatus !== "holiday" && dayStatus !== "working_day") {
-    return { error: "Day status must be either Holiday or Working day." };
+    return { error: t("coordinator.calendar.dayStatusInvalid") };
   }
   if (dayStatus === "holiday" && !holidayType) {
-    return { error: "Holiday type is required when day status is Holiday." };
+    return { error: t("coordinator.calendar.holidayTypeRequiredForHoliday") };
   }
   if (dayStatus === "working_day" && holidayType) {
-    return { error: "Holiday type must be left blank for a working day override." };
+    return { error: t("coordinator.calendar.holidayTypeMustBeBlank") };
   }
   if (holidayType && !(HOLIDAY_TYPES as readonly string[]).includes(holidayType)) {
-    return { error: "Invalid holiday type." };
+    return { error: t("coordinator.calendar.invalidHolidayType") };
   }
 
   const { data, error } = await supabase
@@ -125,7 +127,8 @@ export interface ExamDayLookupResult {
  */
 export async function findNextEligibleExamDay(fromDate: string): Promise<ExamDayLookupResult> {
   if (!fromDate) {
-    return { error: "A start date is required.", eligibleDate: null, isEligible: null, reason: null };
+    const t = await getT();
+    return { error: t("coordinator.calendar.startDateRequired"), eligibleDate: null, isEligible: null, reason: null };
   }
   const supabase = createClient();
 

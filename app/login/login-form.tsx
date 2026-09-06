@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/auth-actions";
+import { useTranslation } from "@/lib/i18n/locale-provider";
 
 interface FormErrors {
   identifier?: string;
@@ -12,6 +13,7 @@ interface FormErrors {
 }
 
 export function LoginForm() {
+  const { t } = useTranslation();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
@@ -23,11 +25,11 @@ export function LoginForm() {
     const trimmedIdentifier = identifier.trim();
 
     if (!trimmedIdentifier) {
-      nextErrors.identifier = "Username or email is required.";
+      nextErrors.identifier = t("auth.usernameOrEmailRequired");
     }
 
     if (!password) {
-      nextErrors.password = "Password is required.";
+      nextErrors.password = t("auth.passwordRequired");
     }
 
     return nextErrors;
@@ -54,7 +56,7 @@ export function LoginForm() {
         setServerError(result.error);
       }
     } catch {
-      setServerError("Unable to sign in. Please try again.");
+      setServerError(t("auth.unableToSignIn"));
     } finally {
       setLoading(false);
     }
@@ -72,7 +74,7 @@ export function LoginForm() {
           <button
             type="button"
             onClick={() => setServerError(null)}
-            aria-label="Dismiss error"
+            aria-label={t("auth.dismissError")}
             className="shrink-0 rounded p-0.5 text-danger-500 transition-colors hover:text-danger-700 focus:outline-none focus:ring-2 focus:ring-danger-500 focus:ring-offset-1"
           >
             <span aria-hidden="true">&times;</span>
@@ -84,7 +86,7 @@ export function LoginForm() {
         id="identifier"
         name="identifier"
         type="text"
-        label="Username or email"
+        label={t("auth.usernameOrEmailLabel")}
         value={identifier}
         onChange={(event) => {
           setIdentifier(event.target.value);
@@ -106,7 +108,7 @@ export function LoginForm() {
         id="password"
         name="password"
         type="password"
-        label="Password"
+        label={t("auth.passwordLabel")}
         value={password}
         onChange={(event) => {
           setPassword(event.target.value);
@@ -125,7 +127,7 @@ export function LoginForm() {
       />
 
       <Button type="submit" loading={loading} className="w-full">
-        Sign in
+        {t("auth.signIn")}
       </Button>
     </form>
   );

@@ -41,19 +41,26 @@ export interface AlertWithTeacher extends AlertRow {
   teacherName: string | null;
 }
 
+/**
+ * These map each alert type/severity to a TranslationKey (a dot-path into
+ * the `alerts` i18n dictionary), not literal text - this file is a plain
+ * data module (no component instance), so it can't call useTranslation()
+ * itself. Consumers (alert-card.tsx) resolve the key with t() at render
+ * time.
+ */
 export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
-  paper_missing: "Paper missing",
-  paper_deadline_approaching: "Paper deadline approaching",
-  paper_rejected: "Paper rejected",
-  test_overdue: "Test overdue",
-  test_not_conducted: "Test not conducted",
-  results_missing: "Results missing",
-  results_overdue: "Results overdue",
-  syllabus_behind: "Syllabus behind schedule",
-  teacher_compliance_warning: "Teacher compliance warning",
-  student_performance_warning: "Student performance warning",
-  class_performance_warning: "Class performance warning",
-  subject_performance_warning: "Subject performance warning",
+  paper_missing: "alerts.types.paperMissing",
+  paper_deadline_approaching: "alerts.types.paperDeadlineApproaching",
+  paper_rejected: "alerts.types.paperRejected",
+  test_overdue: "alerts.types.testOverdue",
+  test_not_conducted: "alerts.types.testNotConducted",
+  results_missing: "alerts.types.resultsMissing",
+  results_overdue: "alerts.types.resultsOverdue",
+  syllabus_behind: "alerts.types.syllabusBehind",
+  teacher_compliance_warning: "alerts.types.teacherComplianceWarning",
+  student_performance_warning: "alerts.types.studentPerformanceWarning",
+  class_performance_warning: "alerts.types.classPerformanceWarning",
+  subject_performance_warning: "alerts.types.subjectPerformanceWarning",
   // 'paper_printed' is genuinely overloaded: the compliance scanner uses it
   // for "approved paper still NOT printed" (severity critical/urgent), while
   // the print-workflow's own mark_exam_paper_printed() RPC uses the SAME
@@ -61,7 +68,7 @@ export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
   // would flatly contradict alert.message (rendered right below it) in one
   // of the two cases. Kept neutral so it never contradicts either meaning;
   // the actual message text always disambiguates which situation this is.
-  paper_printed: "Paper printing update"
+  paper_printed: "alerts.types.paperPrinted"
 };
 
 /**
@@ -80,9 +87,10 @@ export const ALERT_SEVERITY_BADGE_VARIANT: Record<
   critical: "danger"
 };
 
+/** TranslationKey per severity - see ALERT_TYPE_LABEL's comment above. */
 export const ALERT_SEVERITY_LABEL: Record<AlertSeverity, string> = {
-  info: "Info",
-  warning: "Warning",
-  urgent: "Urgent",
-  critical: "Critical"
+  info: "alerts.severity.info",
+  warning: "alerts.severity.warning",
+  urgent: "alerts.severity.urgent",
+  critical: "alerts.severity.critical"
 };

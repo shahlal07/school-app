@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AlertCard } from "@/components/examination/alert-card";
 import type { AlertRow, AlertWithTeacher } from "@/components/examination/alert-types";
+import { getT } from "@/lib/i18n/get-translator";
+import { Bdi } from "@/components/shared/bdi";
 
 interface StatCard {
   label: string;
@@ -116,10 +118,10 @@ function formatDate(iso: string): string {
   });
 }
 
-function healthStatusWord(score: number): { word: string; className: string } {
-  if (score >= 80) return { word: "Healthy", className: "text-green-600" };
-  if (score >= 60) return { word: "Watch", className: "text-amber-600" };
-  return { word: "Critical", className: "text-red-600" };
+function healthStatusKey(score: number): { key: "healthy" | "watch" | "critical"; className: string } {
+  if (score >= 80) return { key: "healthy", className: "text-green-600" };
+  if (score >= 60) return { key: "watch", className: "text-amber-600" };
+  return { key: "critical", className: "text-red-600" };
 }
 
 /**
@@ -156,6 +158,7 @@ function healthStatusWord(score: number): { word: string; className: string } {
  */
 export default async function OwnerHomePage() {
   const supabase = createClient();
+  const t = await getT();
 
   const now = new Date();
   const todayIso = now.toISOString().slice(0, 10);
@@ -303,18 +306,18 @@ export default async function OwnerHomePage() {
   const resultFinalizationBacklog = resultSubmissions.filter((r) => r.status === "submitted").length;
 
   const backlogStats: { label: string; value: number; href: string }[] = [
-    { label: "Papers awaiting approval", value: paperApprovalBacklog, href: "/owner/papers" },
-    { label: "Approved, not yet printed", value: printBacklog, href: "/owner/papers" },
-    { label: "Students at risk", value: studentsAtRiskCount, href: "/owner/alerts" },
-    { label: "Teachers behind", value: teachersBehindCount, href: "/owner/alerts" },
-    { label: "Results awaiting finalization", value: resultFinalizationBacklog, href: "/owner/results" }
+    { label: t("ownerDashboard.papersAwaitingApproval"), value: paperApprovalBacklog, href: "/owner/papers" },
+    { label: t("ownerDashboard.approvedNotPrinted"), value: printBacklog, href: "/owner/papers" },
+    { label: t("ownerDashboard.studentsAtRisk"), value: studentsAtRiskCount, href: "/owner/alerts" },
+    { label: t("ownerDashboard.teachersBehind"), value: teachersBehindCount, href: "/owner/alerts" },
+    { label: t("ownerDashboard.resultsAwaitingFinalization"), value: resultFinalizationBacklog, href: "/owner/results" }
   ];
 
   const statCards: StatCard[] = [
-    { label: "Classes", value: totalClasses, href: "/owner/syllabus" },
-    { label: "Active subjects", value: totalActiveSubjects, href: "/owner/syllabus" },
-    { label: "Active students", value: totalActiveStudents, href: "/owner/students" },
-    { label: "Active teachers", value: totalActiveTeachers, href: "/owner/teachers" }
+    { label: t("ownerDashboard.classes"), value: totalClasses, href: "/owner/syllabus" },
+    { label: t("ownerDashboard.activeSubjects"), value: totalActiveSubjects, href: "/owner/syllabus" },
+    { label: t("ownerDashboard.activeStudents"), value: totalActiveStudents, href: "/owner/students" },
+    { label: t("ownerDashboard.activeTeachers"), value: totalActiveTeachers, href: "/owner/teachers" }
   ];
 
   const needsTeacher = totalActiveTeachers === 0;
@@ -398,14 +401,14 @@ export default async function OwnerHomePage() {
         const doneSlots = rows.filter(isSlotDone).length;
         const nextRow = rows.find((row) => !isSlotDone(row));
         const nextSubjectLabel = nextRow
-          ? subjectNameById.get(nextRow.subject_id) ?? "Unknown subject"
+          ? subjectNameById.get(nextRow.subject_id) ?? t("owner.papers.unknownSubject")
           : totalSlots > 0
-            ? "All subjects conducted"
-            : "No subjects scheduled yet";
+            ? t("owner.dashboard.allSubjectsConducted")
+            : t("owner.dashboard.noSubjectsScheduledYet");
 
         const subjectSlots: ExamSetSubjectSlot[] = rows.map((row) => ({
           subjectId: row.subject_id,
-          subjectName: subjectNameById.get(row.subject_id) ?? "Unknown subject",
+          subjectName: subjectNameById.get(row.subject_id) ?? t("owner.papers.unknownSubject"),
           sequence: row.sequence,
           scheduledDate: row.scheduled_date,
           scheduleItemId: row.schedule_item_id,
@@ -429,9 +432,9 @@ export default async function OwnerHomePage() {
 
         return {
           examSetId: set.id,
-          className: classNameById.get(set.class_id) ?? "Unknown class",
+          className: classNameById.get(set.class_id) ?? t("owner.papers.unknownClass"),
           setNumber: set.set_number,
-          dayLabel: `Day ${doneSlots} of ${totalSlots}`,
+          dayLabel: `${t("owner.dashboard.dayPrefix")} ${doneSlots} ${t("owner.dashboard.ofWord")} ${totalSlots}`,
           nextSubjectLabel,
           overallAverage: report.overallAverage
         };
@@ -439,7 +442,7 @@ export default async function OwnerHomePage() {
       .sort((a, b) => a.className.localeCompare(b.className));
   }
 
-  const healthStatus = healthStatusWord(intelligence.healthScore);
+  const healthStatus = healthStatusKey(intelligence.healthScore);
   const lowestHealthMetrics = intelligence.healthMetrics
     .slice()
     .sort((a, b) => a.score - b.score)
@@ -450,39 +453,39 @@ export default async function OwnerHomePage() {
       {/* Academic Health hero */}
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">Owner console</h1>
-          <p className="mt-1 text-sm text-neutral-500">What needs your attention today.</p>
+          <h1 className="text-xl font-semibold text-neutral-900">{t("ownerDashboard.title")}</h1>
+          <p className="mt-1 text-sm text-neutral-500">{t("ownerDashboard.subtitle")}</p>
         </div>
         <Link href="/owner/academic-health" className={secondaryLinkButtonClasses}>
-          Academic health score &rarr;
+          {t("ownerDashboard.academicHealthScore")} &rarr;
         </Link>
       </div>
 
       <Card className="mt-5">
         <CardHeader>
-          <CardTitle>School academic health</CardTitle>
+          <CardTitle>{t("owner.dashboard.academicHealthCardTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           {intelligence.healthMetrics.length === 0 ? (
             <EmptyState
-              title="Not enough academic data yet to calculate a health score"
-              description="Once exams are scheduled, papers are submitted, and results come in, a school health score will appear here."
+              title={t("intelligence.notEnoughDataForScore")}
+              description={t("intelligence.notEnoughDataForScoreDescription")}
             />
           ) : (
             <div className="flex flex-wrap items-end gap-6">
               <div>
-                <p className="text-4xl font-semibold text-neutral-900">{intelligence.healthScore}</p>
+                <p className="text-4xl font-semibold text-neutral-900"><Bdi>{intelligence.healthScore}</Bdi></p>
                 <p className="text-sm text-neutral-500">
-                  out of 100 &middot; <span className={`font-medium ${healthStatus.className}`}>{healthStatus.word}</span>
+                  {t("owner.dashboard.outOf100")} &middot; <span className={`font-medium ${healthStatus.className}`}>{t(`intelligence.${healthStatus.key}`)}</span>
                 </p>
               </div>
               <div className="min-w-[260px] flex-1 space-y-1.5">
-                <p className="text-xs font-medium text-neutral-500">What&apos;s dragging the score down</p>
+                <p className="text-xs font-medium text-neutral-500">{t("intelligence.whatsDraggingScoreDown")}</p>
                 {lowestHealthMetrics.map((metric) => (
                   <div key={metric.label} className="flex items-baseline justify-between gap-3 text-sm">
-                    <span className="font-medium text-neutral-700">{metric.label}</span>
+                    <span className="font-medium text-neutral-700"><Bdi>{metric.label}</Bdi></span>
                     <span className="text-neutral-500">
-                      {metric.score}% &middot; {metric.detail}
+                      <Bdi>{metric.score}%</Bdi> &middot; <Bdi>{metric.detail}</Bdi>
                     </span>
                   </div>
                 ))}
@@ -495,13 +498,13 @@ export default async function OwnerHomePage() {
       {/* 1. Urgent dangers */}
       <Card className="mt-4">
         <CardHeader>
-          <CardTitle>Urgent dangers</CardTitle>
+          <CardTitle>{t("intelligence.urgentDangers")}</CardTitle>
         </CardHeader>
         <CardContent>
           {urgentDangersShown.length === 0 ? (
             <EmptyState
-              title="Nothing urgent right now"
-              description="No open alerts are marked urgent or critical."
+              title={t("intelligence.nothingUrgent")}
+              description={t("intelligence.noOpenAlerts")}
             />
           ) : (
             <>
@@ -517,7 +520,11 @@ export default async function OwnerHomePage() {
                   href="/owner/alerts"
                   className="mt-3 inline-block text-sm font-medium text-primary-600 hover:underline"
                 >
-                  {urgentDangersRemaining} more urgent alert{urgentDangersRemaining === 1 ? "" : "s"} &rarr;
+                  <Bdi>{urgentDangersRemaining}</Bdi>{" "}
+                  {urgentDangersRemaining === 1
+                    ? t("owner.dashboard.moreUrgentAlertSingular")
+                    : t("owner.dashboard.moreUrgentAlertPlural")}{" "}
+                  &rarr;
                 </Link>
               )}
             </>
@@ -529,17 +536,17 @@ export default async function OwnerHomePage() {
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         {(
           [
-            { label: "Today", items: examsToday },
-            { label: "Tomorrow", items: examsTomorrow }
-          ] as const
-        ).map(({ label, items }) => (
-          <Card key={label}>
+            { title: t("ownerDashboard.examsToday"), empty: t("ownerDashboard.noExamsToday"), items: examsToday },
+            { title: t("ownerDashboard.examsTomorrow"), empty: t("ownerDashboard.noExamsTomorrow"), items: examsTomorrow }
+          ]
+        ).map(({ title, empty, items }) => (
+          <Card key={title}>
             <CardHeader>
-              <CardTitle>Exams {label.toLowerCase()}</CardTitle>
+              <CardTitle>{title}</CardTitle>
             </CardHeader>
             <CardContent>
               {items.length === 0 ? (
-                <p className="text-sm text-neutral-500">No exams scheduled {label.toLowerCase()}.</p>
+                <p className="text-sm text-neutral-500">{empty}</p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {items.map((item) => (
@@ -548,15 +555,15 @@ export default async function OwnerHomePage() {
                       className="flex items-center justify-between gap-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-neutral-900">{item.title}</p>
+                        <p className="truncate font-medium text-neutral-900"><Bdi>{item.title}</Bdi></p>
                         <p className="text-xs text-neutral-500">
-                          {classNameById.get(item.class_id) ?? "Unknown class"} &middot;{" "}
-                          {subjectNameById.get(item.subject_id) ?? "Unknown subject"} &middot;{" "}
-                          {formatDate(item.scheduled_date)}
+                          <Bdi>{classNameById.get(item.class_id) ?? t("owner.papers.unknownClass")}</Bdi> &middot;{" "}
+                          <Bdi>{subjectNameById.get(item.subject_id) ?? t("owner.papers.unknownSubject")}</Bdi> &middot;{" "}
+                          <Bdi>{formatDate(item.scheduled_date)}</Bdi>
                         </p>
                       </div>
                       <Badge variant={scheduleStatusBadgeVariant[item.status] ?? "neutral"}>
-                        {item.status}
+                        <Bdi>{item.status}</Bdi>
                       </Badge>
                     </li>
                   ))}
@@ -570,27 +577,27 @@ export default async function OwnerHomePage() {
       {/* Current Exam Cycle */}
       <Card className="mt-4">
         <CardHeader>
-          <CardTitle>Current exam cycle</CardTitle>
+          <CardTitle>{t("ownerDashboard.currentExamCycle")}</CardTitle>
         </CardHeader>
         <CardContent>
           {examCycleCards.length === 0 ? (
             <EmptyState
-              title="No exam cycle currently in progress."
-              description="Start a new exam set to see per-class progress here."
+              title={t("ownerDashboard.noExamCycle")}
+              description={t("ownerDashboard.noExamCycleDescription")}
             />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {examCycleCards.map((card) => (
                 <div key={card.examSetId} className="rounded-xl border border-neutral-200 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-neutral-900">{card.className}</p>
-                    <Badge variant="neutral">Set #{card.setNumber}</Badge>
+                    <p className="text-sm font-semibold text-neutral-900"><Bdi>{card.className}</Bdi></p>
+                    <Badge variant="neutral">{t("owner.dashboard.setPrefix")} #<Bdi>{card.setNumber}</Bdi></Badge>
                   </div>
-                  <p className="mt-1 text-xs text-neutral-500">{card.dayLabel}</p>
-                  <p className="mt-2 text-sm text-neutral-700">Next up: {card.nextSubjectLabel}</p>
+                  <p className="mt-1 text-xs text-neutral-500"><Bdi>{card.dayLabel}</Bdi></p>
+                  <p className="mt-2 text-sm text-neutral-700">{t("ownerDashboard.nextUp")}: <Bdi>{card.nextSubjectLabel}</Bdi></p>
                   <p className="mt-1 text-xs text-neutral-500">
-                    Running average:{" "}
-                    {card.overallAverage === null ? "not enough graded results yet" : `${card.overallAverage}%`}
+                    {t("ownerDashboard.runningAverage")}:{" "}
+                    {card.overallAverage === null ? t("ownerDashboard.notEnoughGraded") : <Bdi>{card.overallAverage}%</Bdi>}
                   </p>
                 </div>
               ))}
@@ -598,7 +605,7 @@ export default async function OwnerHomePage() {
           )}
           {examCycleCards.length === 0 && (
             <Link href="/coordinator/exam-sets" className={`${secondaryLinkButtonClasses} mt-4`}>
-              View exam sets
+              {t("ownerDashboard.viewExamSets")}
             </Link>
           )}
         </CardContent>
@@ -615,7 +622,7 @@ export default async function OwnerHomePage() {
                     stat.value > 0 ? "text-neutral-900" : "text-neutral-400"
                   }`}
                 >
-                  {stat.value}
+                  <Bdi>{stat.value}</Bdi>
                 </p>
                 <p className="mt-1 text-sm text-neutral-500">{stat.label}</p>
               </CardContent>
@@ -630,7 +637,7 @@ export default async function OwnerHomePage() {
           <Link key={stat.label} href={stat.href} className="block">
             <Card className="h-full transition-shadow hover:shadow-md">
               <CardContent className="py-5">
-                <p className="text-2xl font-semibold text-neutral-900">{stat.value}</p>
+                <p className="text-2xl font-semibold text-neutral-900"><Bdi>{stat.value}</Bdi></p>
                 <p className="mt-1 text-sm text-neutral-500">{stat.label}</p>
               </CardContent>
             </Card>
@@ -641,25 +648,26 @@ export default async function OwnerHomePage() {
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Syllabus coverage</CardTitle>
+            <CardTitle>{t("ownerDashboard.syllabusCoverage")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold text-neutral-900">
-              {subjectsWithSyllabus} of {totalSubjects}
+              <Bdi>{subjectsWithSyllabus} {t("owner.dashboard.ofWord")} {totalSubjects}</Bdi>
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              subjects have a syllabus started.
+              {t("ownerDashboard.subjectsHaveSyllabus")}
               {subjectsWithoutSyllabus > 0 && (
                 <>
                   {" "}
-                  {subjectsWithoutSyllabus} subject
-                  {subjectsWithoutSyllabus === 1 ? "" : "s"} still need
-                  {subjectsWithoutSyllabus === 1 ? "s" : ""} chapters added.
+                  <Bdi>{subjectsWithoutSyllabus}</Bdi>{" "}
+                  {subjectsWithoutSyllabus === 1
+                    ? t("owner.dashboard.subjectNeedsChaptersSingular")
+                    : t("owner.dashboard.subjectNeedsChaptersPlural")}
                 </>
               )}
             </p>
             <Link href="/owner/syllabus" className={`${secondaryLinkButtonClasses} mt-4`}>
-              Manage syllabus
+              {t("ownerDashboard.manageSyllabus")}
             </Link>
           </CardContent>
         </Card>
@@ -667,29 +675,29 @@ export default async function OwnerHomePage() {
         {showSetupPrompts && (
           <Card>
             <CardHeader>
-              <CardTitle>Get set up</CardTitle>
+              <CardTitle>{t("ownerDashboard.getSetUp")}</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="flex flex-col gap-3">
                 {needsTeacher && (
                   <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium text-neutral-900">Invite a teacher</p>
-                      <p className="text-sm text-neutral-500">No teacher accounts yet.</p>
+                      <p className="text-sm font-medium text-neutral-900">{t("ownerDashboard.inviteTeacher")}</p>
+                      <p className="text-sm text-neutral-500">{t("ownerDashboard.noTeacherAccounts")}</p>
                     </div>
                     <Link href="/owner/teachers" className={linkButtonClasses}>
-                      Invite teacher
+                      {t("owner.dashboard.inviteTeacherButton")}
                     </Link>
                   </li>
                 )}
                 {needsStudents && (
                   <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium text-neutral-900">Add students</p>
-                      <p className="text-sm text-neutral-500">The student roster is empty.</p>
+                      <p className="text-sm font-medium text-neutral-900">{t("ownerDashboard.addStudents")}</p>
+                      <p className="text-sm text-neutral-500">{t("ownerDashboard.rosterEmpty")}</p>
                     </div>
                     <Link href="/owner/students" className={linkButtonClasses}>
-                      Add students
+                      {t("ownerDashboard.addStudents")}
                     </Link>
                   </li>
                 )}

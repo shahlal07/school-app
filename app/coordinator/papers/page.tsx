@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ScheduleItemRow } from "@/components/examination/schedule-list";
 import type { ExamPaper, ExamPaperStatus, PaperQueueRow } from "@/components/examination/paper-types";
 import { PaperReviewQueue } from "@/components/examination/paper-review-queue";
+import { getT } from "@/lib/i18n/get-translator";
 
 /**
  * Full read+write paper-review queue - approving/rejecting exam papers is
@@ -18,6 +19,7 @@ import { PaperReviewQueue } from "@/components/examination/paper-review-queue";
  */
 export default async function CoordinatorPapersPage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [scheduleItemsRes, examPapersRes, classesRes, subjectsRes, profilesRes] =
     await Promise.all([
@@ -53,8 +55,8 @@ export default async function CoordinatorPapersPage() {
     return {
       scheduleItem,
       paper,
-      className: classNameById.get(scheduleItem.class_id) ?? "Unknown class",
-      subjectName: subjectNameById.get(scheduleItem.subject_id) ?? "Unknown subject",
+      className: classNameById.get(scheduleItem.class_id) ?? t("coordinator.fallback.unknownClass"),
+      subjectName: subjectNameById.get(scheduleItem.subject_id) ?? t("coordinator.fallback.unknownSubject"),
       teacherName: teacherId ? teacherNameById.get(teacherId) ?? null : null,
       testType: scheduleItem.test_type,
       status
@@ -72,9 +74,9 @@ export default async function CoordinatorPapersPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Papers</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("coordinator.papers.title")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Review exam papers teachers have submitted for scheduled tests.
+        {t("coordinator.papers.subtitle")}
       </p>
 
       <div className="mt-5">

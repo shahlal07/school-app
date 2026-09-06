@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { ChatThread } from "@/components/examination/chat-thread";
 import type { Message, Profile } from "@/types/database";
+import { useTranslation } from "@/lib/i18n/locale-provider";
+import { Bdi } from "@/components/shared/bdi";
 
 import { markThreadReadForTeacher, sendBroadcastToTeachers, sendMessageToTeacher } from "./actions";
 
@@ -80,6 +82,7 @@ function OwnerMessagesInner({
 }: OwnerMessagesClientProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const [broadcastBody, setBroadcastBody] = useState("");
   const [broadcastSubmitting, setBroadcastSubmitting] = useState(false);
@@ -152,7 +155,7 @@ function OwnerMessagesInner({
       return;
     }
 
-    toast("Broadcast sent to all teachers", "success");
+    toast(t("owner.messages.broadcastSent"), "success");
     setBroadcastOpen(false);
     setBroadcastBody("");
   }
@@ -160,10 +163,10 @@ function OwnerMessagesInner({
   if (teachers.length === 0) {
     return (
       <div className="p-4 sm:p-6">
-        <h1 className="mb-6 text-xl font-semibold text-neutral-900">Messages</h1>
+        <h1 className="mb-6 text-xl font-semibold text-neutral-900">{t("nav.messages")}</h1>
         <EmptyState
-          title="No one to message yet"
-          description="Invite a teacher first, then their conversation will show up here."
+          title={t("owner.messages.noOneToMessage")}
+          description={t("owner.messages.noOneToMessageDescription")}
         />
       </div>
     );
@@ -172,9 +175,9 @@ function OwnerMessagesInner({
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col p-4 sm:p-6 md:h-[calc(100vh-4rem)]">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-neutral-900">Messages</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("nav.messages")}</h1>
         <Button size="sm" onClick={() => setBroadcastOpen(true)}>
-          Broadcast to all
+          {t("owner.messages.broadcastToAll")}
         </Button>
       </div>
 
@@ -198,12 +201,12 @@ function OwnerMessagesInner({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium text-neutral-900">
-                        {teacher.full_name}
+                        <Bdi>{teacher.full_name}</Bdi>
                       </span>
-                      {unreadCount > 0 && <Badge variant="info">{unreadCount}</Badge>}
+                      {unreadCount > 0 && <Badge variant="info"><Bdi>{unreadCount}</Bdi></Badge>}
                     </div>
                     <p className="truncate text-xs text-neutral-500">
-                      {lastMessage ? lastMessage.body : "No messages yet"}
+                      {lastMessage ? <Bdi>{lastMessage.body}</Bdi> : t("owner.messages.noMessagesYet")}
                     </p>
                   </div>
                 </button>
@@ -223,7 +226,7 @@ function OwnerMessagesInner({
                 <button
                   type="button"
                   onClick={backToList}
-                  aria-label="Back to conversations"
+                  aria-label={t("owner.messages.backToConversations")}
                   className="rounded-lg p-1 text-neutral-500 hover:bg-neutral-100 md:hidden"
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -231,14 +234,14 @@ function OwnerMessagesInner({
                   </svg>
                 </button>
                 <Avatar name={selectedTeacher.full_name} size="sm" />
-                <span className="text-sm font-semibold text-neutral-900">{selectedTeacher.full_name}</span>
+                <span className="text-sm font-semibold text-neutral-900"><Bdi>{selectedTeacher.full_name}</Bdi></span>
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
                 {threadMessages.length === 0 ? (
                   <EmptyState
-                    title="No messages yet"
-                    description={`Start the conversation with ${selectedTeacher.full_name}.`}
+                    title={t("owner.messages.noMessagesYet")}
+                    description={`${t("owner.messages.startConversationWith")} ${selectedTeacher.full_name}.`}
                   />
                 ) : (
                   <ChatThread messages={threadMessages} currentUserId={ownerUserId} />
@@ -248,22 +251,22 @@ function OwnerMessagesInner({
               <form onSubmit={handleReply} className="flex items-end gap-2 border-t border-neutral-200 p-3">
                 <div className="flex-1">
                   <Textarea
-                    label="Reply"
+                    label={t("owner.messages.replyLabel")}
                     className="min-h-[44px]"
                     value={replyBody}
                     onChange={(event) => setReplyBody(event.target.value)}
-                    placeholder="Write a message..."
+                    placeholder={t("owner.messages.writeMessagePlaceholder")}
                     required
                   />
                 </div>
                 <Button type="submit" size="md" loading={replySubmitting}>
-                  Send
+                  {t("owner.messages.send")}
                 </Button>
               </form>
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center">
-              <p className="text-sm text-neutral-500">Select a conversation to view messages.</p>
+              <p className="text-sm text-neutral-500">{t("owner.messages.selectConversation")}</p>
             </div>
           )}
         </div>
@@ -272,8 +275,8 @@ function OwnerMessagesInner({
       <Dialog
         open={broadcastOpen}
         onClose={() => setBroadcastOpen(false)}
-        title="Broadcast to all teachers"
-        description="This sends the same message to every active teacher as an individual message."
+        title={t("owner.messages.broadcastDialogTitle")}
+        description={t("owner.messages.broadcastDialogDescription")}
       >
         <form onSubmit={handleBroadcast} className="space-y-4">
           {broadcastError && (
@@ -282,18 +285,18 @@ function OwnerMessagesInner({
             </p>
           )}
           <Textarea
-            label="Message"
+            label={t("owner.messages.messageLabel")}
             value={broadcastBody}
             onChange={(event) => setBroadcastBody(event.target.value)}
-            placeholder="Write an announcement for all teachers..."
+            placeholder={t("owner.messages.announcementPlaceholder")}
             required
           />
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => setBroadcastOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" loading={broadcastSubmitting}>
-              Send to all teachers
+              {t("owner.messages.sendToAllTeachers")}
             </Button>
           </div>
         </form>

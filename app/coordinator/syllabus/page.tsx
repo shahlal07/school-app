@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { SyllabusManager } from "@/components/examination/syllabus-manager";
 import { classOrderIndex } from "@/components/examination/constants";
+import { getT } from "@/lib/i18n/get-translator";
 
 /**
  * Full read/write syllabus manager, moved here from app/owner/syllabus -
@@ -17,6 +18,7 @@ import { classOrderIndex } from "@/components/examination/constants";
 export default async function CoordinatorSyllabusPage() {
   await requireRole("academic_coordinator");
   const supabase = createClient();
+  const t = await getT();
 
   const [classesRes, subjectsRes, chaptersRes, topicsRes] = await Promise.all([
     supabase.from("classes").select("*"),
@@ -50,9 +52,9 @@ export default async function CoordinatorSyllabusPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Syllabus manager</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("coordinator.syllabus.title")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Manage subjects, chapters, and topics for every class.
+        {t("coordinator.syllabus.subtitle")}
       </p>
 
       <div className="mt-5">

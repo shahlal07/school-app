@@ -1,6 +1,7 @@
 import type { Chapter, Class, Subject, Topic } from "@/types/examination";
 import type { ScheduleItemRow } from "@/components/examination/schedule-list";
 import { createClient } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/get-translator";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   TeacherScheduleCard,
@@ -14,6 +15,7 @@ import {
  * teacher_subjects, so a plain unfiltered select is correct and complete.
  */
 export default async function TeacherExamsPage() {
+  const t = await getT();
   const supabase = createClient();
 
   const [scheduleRes, classesRes, subjectsRes, chaptersRes, topicsRes] = await Promise.all([
@@ -46,11 +48,11 @@ export default async function TeacherExamsPage() {
   if (items.length === 0) {
     return (
       <main className="p-4 sm:p-6">
-        <h1 className="text-xl font-semibold text-neutral-900">Exams</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("nav.exams")}</h1>
         <div className="mt-4">
           <EmptyState
-            title="No exams assigned yet"
-            description="You don't have any subjects assigned yet, so there's nothing to schedule. Once the school owner assigns you to a subject, your upcoming tests will show up here."
+            title={t("teacher.exams.emptyTitle")}
+            description={t("teacher.exams.emptyDescription")}
           />
         </div>
       </main>
@@ -70,16 +72,16 @@ export default async function TeacherExamsPage() {
   const upcoming = items.filter((item) => item.scheduled_date > weekAheadStr);
 
   const sections: { heading: string; items: TeacherScheduleItem[] }[] = [
-    { heading: "Today", items: today },
-    { heading: "This week", items: thisWeek },
-    { heading: "Upcoming", items: upcoming },
-    { heading: "Past", items: past }
+    { heading: t("teacher.exams.sectionToday"), items: today },
+    { heading: t("teacher.exams.sectionThisWeek"), items: thisWeek },
+    { heading: t("teacher.exams.sectionUpcoming"), items: upcoming },
+    { heading: t("teacher.exams.sectionPast"), items: past }
   ].filter((section) => section.items.length > 0);
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Exams</h1>
-      <p className="mt-1 text-sm text-neutral-500">Your scheduled tests, grouped by date.</p>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.exams")}</h1>
+      <p className="mt-1 text-sm text-neutral-500">{t("teacher.exams.subtitle")}</p>
 
       <div className="mt-5 flex flex-col gap-6">
         {sections.map((section) => (

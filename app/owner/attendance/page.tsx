@@ -5,9 +5,12 @@ import { AcademicOperationsBridge } from "@/components/attendance/academic-opera
 import { getDailyAttendanceReport, getStaffAttendance, pakistanDate } from "@/lib/attendance/report";
 import { getAttendanceAcademicSignals, getAttendanceTrend, getExamAttendanceExceptions } from "@/lib/attendance/integration";
 import { getTeacherAttendanceCompliance } from "@/lib/attendance/teacher-compliance";
+import { getT } from "@/lib/i18n/get-translator";
+import { Bdi } from "@/components/shared/bdi";
 
 export default async function OwnerAttendancePage() {
   await requireRole("owner");
+  const t = await getT();
   const date = pakistanDate();
   const [report, staff, signals, exceptions, trend, teacherCompliance] = await Promise.all([
     getDailyAttendanceReport(date),
@@ -21,7 +24,7 @@ export default async function OwnerAttendancePage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <div className="mb-6"><p className="text-xs font-semibold uppercase tracking-wide text-primary-600">Attendance department</p><h1 className="mt-1 text-2xl font-semibold text-neutral-900">Attendance overview</h1><p className="mt-1 text-sm text-neutral-500">{date} · executive awareness only. Routine attendance entry stays with teachers and the coordinator.</p></div>
+      <div className="mb-6"><p className="text-xs font-semibold uppercase tracking-wide text-primary-600">{t("owner.attendance.eyebrow")}</p><h1 className="mt-1 text-2xl font-semibold text-neutral-900">{t("owner.attendance.title")}</h1><p className="mt-1 text-sm text-neutral-500"><Bdi>{date}</Bdi> · {t("owner.attendance.subtitleSuffix")}</p></div>
       <DailyAttendanceReport rows={report.rows} missing={report.missing} date={date} />
       <AcademicOperationsBridge signals={signals.rows} examExceptions={exceptions.rows} trend={trend.rows} teacherCompliance={teacherCompliance} attendanceHref="/owner/attendance" />
       <StaffAttendanceSummary rows={staffRows} date={date} />

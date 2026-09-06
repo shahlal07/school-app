@@ -8,6 +8,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import type { Profile } from "@/types/database";
 import type { Class, Subject } from "@/types/examination";
+import { useTranslation } from "@/lib/i18n/locale-provider";
+import { Bdi } from "@/components/shared/bdi";
 
 import { assignTeacherSubject, unassignTeacherSubject } from "./actions";
 
@@ -39,6 +41,7 @@ export function AssignSubjectsDialog({
   onChanged
 }: AssignSubjectsDialogProps) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [adding, setAdding] = useState(false);
@@ -71,7 +74,7 @@ export function AssignSubjectsDialog({
       return;
     }
 
-    toast("Assigned", "success");
+    toast(t("owner.teachers.assignedToast"), "success");
     setSelectedSubjectId("");
     onChanged();
   }
@@ -86,7 +89,7 @@ export function AssignSubjectsDialog({
       return;
     }
 
-    toast("Removed", "success");
+    toast(t("owner.teachers.removedToast"), "success");
     onChanged();
   }
 
@@ -94,12 +97,12 @@ export function AssignSubjectsDialog({
     <Dialog
       open={!!teacher}
       onClose={onClose}
-      title={`Assign subjects to ${teacher?.full_name ?? ""}`}
-      description="This teacher will only ever see data for the class + subject combinations assigned here - nothing else."
+      title={`${t("owner.teachers.assignSubjectsToPrefix")} ${teacher?.full_name ?? ""}`}
+      description={t("owner.teachers.assignSubjectsDescription")}
     >
       <div className="flex flex-col gap-4">
         {teacherAssignments.length === 0 ? (
-          <p className="text-sm text-neutral-500">No subjects assigned yet.</p>
+          <p className="text-sm text-neutral-500">{t("owner.teachers.noSubjectsAssignedYet")}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {teacherAssignments.map((assignment) => {
@@ -111,9 +114,9 @@ export function AssignSubjectsDialog({
                   className="flex items-center justify-between gap-2 rounded-lg bg-neutral-50 px-3 py-2"
                 >
                   <span className="flex min-w-0 items-center gap-1.5 text-sm text-neutral-800">
-                    <span className="truncate">{subject?.name ?? "Unknown subject"}</span>
+                    <span className="truncate"><Bdi>{subject?.name ?? t("owner.papers.unknownSubject")}</Bdi></span>
                     <Badge variant="neutral" className="shrink-0">
-                      {klass?.name ?? "?"}
+                      <Bdi>{klass?.name ?? "?"}</Bdi>
                     </Badge>
                   </span>
                   <Button
@@ -122,7 +125,7 @@ export function AssignSubjectsDialog({
                     loading={removingId === assignment.id}
                     onClick={() => handleRemove(assignment.id)}
                   >
-                    <span className="text-danger-600">Remove</span>
+                    <span className="text-danger-600">{t("common.remove")}</span>
                   </Button>
                 </li>
               );
@@ -133,7 +136,7 @@ export function AssignSubjectsDialog({
         <div className="flex flex-col gap-3 border-t border-neutral-100 pt-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-neutral-700" htmlFor="assign-class">
-              Class
+              {t("terms.class")}
             </label>
             <select
               id="assign-class"
@@ -144,7 +147,7 @@ export function AssignSubjectsDialog({
               }}
               className={selectClasses}
             >
-              <option value="">Select a class</option>
+              <option value="">{t("owner.teachers.selectAClass")}</option>
               {classes.map((klass) => (
                 <option key={klass.id} value={klass.id}>
                   {klass.name}
@@ -155,7 +158,7 @@ export function AssignSubjectsDialog({
 
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-neutral-700" htmlFor="assign-subject">
-              Subject
+              {t("terms.subject")}
             </label>
             <select
               id="assign-subject"
@@ -164,7 +167,7 @@ export function AssignSubjectsDialog({
               disabled={!selectedClassId}
               className={selectClasses}
             >
-              <option value="">Select a subject</option>
+              <option value="">{t("owner.teachers.selectASubject")}</option>
               {subjectsForSelectedClass.map((subject) => (
                 <option key={subject.id} value={subject.id}>
                   {subject.name}
@@ -180,13 +183,13 @@ export function AssignSubjectsDialog({
             disabled={!selectedClassId || !selectedSubjectId}
             className="self-start"
           >
-            + Add assignment
+            + {t("owner.teachers.addAssignment")}
           </Button>
         </div>
 
         <div className="flex justify-end pt-2">
           <Button type="button" variant="ghost" onClick={onClose}>
-            Done
+            {t("owner.teachers.done")}
           </Button>
         </div>
       </div>

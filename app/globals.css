@@ -31,7 +31,7 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* ---- Language / RTL support ---------------------------------------- */
+/* ---- Language support ------------------------------------------------ */
 
 /*
  * Khat-e-Nastaleeq for the whole document whenever Urdu is active - applied
@@ -39,8 +39,20 @@ body {
  * digits/identifiers embedded in Urdu text (marks, dates, "Set #004") fall
  * back through the stack cleanly since Noto Nastaliq Urdu's Latin coverage
  * is minimal; browsers already do this substitution correctly per-glyph.
+ *
+ * Keyed off [lang="ur"] rather than [dir="rtl"] - the page direction stays
+ * "ltr" for both languages on purpose (see app/layout.tsx), so switching to
+ * Urdu only swaps the font and translates text; it never mirrors the layout
+ * (sidebar side, content padding, icons). Targets both the [lang="ur"]
+ * element itself (<html>) and every descendant, including <body> - body
+ * carries next/font's own generated class (e.g. `__Inter_xxx`) which sets
+ * font-family directly on the element, and a same-specificity inherited
+ * rule from an ancestor never beats a rule targeting the element itself.
+ * The explicit "[lang='ur'] body" descendant selector has higher
+ * specificity than that class alone, so it wins without needing !important.
  */
-[dir="rtl"] {
+[lang="ur"],
+[lang="ur"] body {
   font-family: var(--font-urdu), "Noto Nastaliq Urdu", var(--font-inter), sans-serif;
   line-height: 2.1; /* Nastaliq's vertical stacking needs materially more room than Latin text */
 }

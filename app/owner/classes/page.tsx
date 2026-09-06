@@ -4,6 +4,7 @@ import { classOrderIndex } from "@/components/examination/constants";
 import { ClassesClient } from "./classes-client";
 import type { Profile } from "@/types/database";
 import type { Class, ClassTeacher, Section } from "@/types/examination";
+import { getT } from "@/lib/i18n/get-translator";
 
 export default async function ClassTeachersPage() {
   // Matches the class_teachers RLS write policy's assignment-authority set
@@ -11,6 +12,7 @@ export default async function ClassTeachersPage() {
   await requireAnyRole(["owner", "principal", "academic_coordinator"]);
 
   const supabase = createClient();
+  const t = await getT();
 
   const [classesRes, sectionsRes, classTeachersRes, teachersRes] = await Promise.all([
     supabase.from("classes").select("*"),
@@ -28,9 +30,9 @@ export default async function ClassTeachersPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Class Teachers</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.classTeachers")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Assign the homeroom teacher responsible for each class section.
+        {t("owner.classes.subtitle")}
       </p>
 
       <div className="mt-5">

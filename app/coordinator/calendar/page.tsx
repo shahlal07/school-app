@@ -5,6 +5,8 @@ import { NextEligibleDayWidget } from "./next-eligible-day-widget";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { getT } from "@/lib/i18n/get-translator";
+import { Bdi } from "@/components/shared/bdi";
 
 const HOLIDAY_TYPES = [
   "public",
@@ -26,14 +28,24 @@ interface CalendarOverrideRow {
   notes: string | null;
 }
 
-function formatHolidayType(type: string): string {
-  return type.replace(/_/g, " ");
-}
+const HOLIDAY_TYPE_KEY: Record<(typeof HOLIDAY_TYPES)[number], string> = {
+  public: "coordinator.calendar.holidayTypePublic",
+  religious: "coordinator.calendar.holidayTypeReligious",
+  school: "coordinator.calendar.holidayTypeSchool",
+  weather: "coordinator.calendar.holidayTypeWeather",
+  emergency: "coordinator.calendar.holidayTypeEmergency",
+  teacher_training: "coordinator.calendar.holidayTypeTeacherTraining",
+  local: "coordinator.calendar.holidayTypeLocal",
+  custom: "coordinator.calendar.holidayTypeCustom"
+};
 
 export default async function CoordinatorCalendarPage() {
   const profile = await requireAnyRole(["owner", "academic_coordinator"]);
   const canManage = profile.role === "academic_coordinator";
   const supabase = createClient();
+  const t = await getT();
+  const formatHolidayType = (type: string): string =>
+    t(HOLIDAY_TYPE_KEY[type as (typeof HOLIDAY_TYPES)[number]] ?? type);
 
   const { data } = await supabase
     .from("calendar_overrides")
@@ -50,16 +62,15 @@ export default async function CoordinatorCalendarPage() {
   return (
     <main className="flex flex-col gap-5 p-4 sm:p-6">
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Academic calendar</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("coordinator.calendar.title")}</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Holidays and working-day overrides that the continuous-exam-scheduling engine uses to
-          decide which dates are eligible for exams, on top of the default weekend.
+          {t("coordinator.calendar.subtitle")}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Next eligible exam day</CardTitle>
+          <CardTitle>{t("coordinator.calendar.nextEligibleDay")}</CardTitle>
         </CardHeader>
         <CardContent>
           <NextEligibleDayWidget />
@@ -69,12 +80,12 @@ export default async function CoordinatorCalendarPage() {
       {canManage && (
         <Card>
           <CardHeader>
-            <CardTitle>Add holiday / working-day override</CardTitle>
+            <CardTitle>{t("coordinator.calendar.addOverride")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form action={submitOverride} className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm">
-                Date
+                {t("coordinator.calendar.date")}
                 <input
                   name="date"
                   type="date"
@@ -83,45 +94,45 @@ export default async function CoordinatorCalendarPage() {
                 />
               </label>
               <label className="text-sm">
-                Day status
+                {t("coordinator.calendar.dayStatus")}
                 <select
                   name="dayStatus"
                   required
                   defaultValue="holiday"
                   className="mt-1 w-full rounded-xl border border-neutral-200 p-2"
                 >
-                  <option value="holiday">Holiday</option>
-                  <option value="working_day">Working day override</option>
+                  <option value="holiday">{t("coordinator.calendar.holiday")}</option>
+                  <option value="working_day">{t("coordinator.calendar.workingDayOverride")}</option>
                 </select>
               </label>
               <label className="text-sm">
-                Holiday type
+                {t("coordinator.calendar.holidayType")}
                 <select
                   name="holidayType"
                   className="mt-1 w-full rounded-xl border border-neutral-200 p-2"
                 >
-                  <option value="">Not applicable (working day)</option>
-                  {HOLIDAY_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {formatHolidayType(t)}
+                  <option value="">{t("coordinator.calendar.notApplicable")}</option>
+                  {HOLIDAY_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {formatHolidayType(type)}
                     </option>
                   ))}
                 </select>
                 <span className="mt-1 block text-xs text-neutral-500">
-                  Required when day status is Holiday, must be left blank for a working day.
+                  {t("coordinator.calendar.holidayTypeHelp")}
                 </span>
               </label>
               <label className="text-sm">
-                Name
+                {t("coordinator.calendar.name")}
                 <input
                   name="name"
                   required
-                  placeholder="e.g. Eid-ul-Fitr"
+                  placeholder={t("coordinator.calendar.namePlaceholder")}
                   className="mt-1 w-full rounded-xl border border-neutral-200 p-2"
                 />
               </label>
               <label className="text-sm sm:col-span-2">
-                Notes
+                {t("coordinator.calendar.notes")}
                 <textarea
                   name="notes"
                   rows={3}
@@ -132,7 +143,7 @@ export default async function CoordinatorCalendarPage() {
                 type="submit"
                 className="w-fit rounded-xl bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
               >
-                Save override
+                {t("coordinator.calendar.saveOverride")}
               </button>
             </form>
           </CardContent>
@@ -141,13 +152,13 @@ export default async function CoordinatorCalendarPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Holidays and overrides</CardTitle>
+          <CardTitle>{t("coordinator.calendar.holidaysAndOverrides")}</CardTitle>
         </CardHeader>
         <CardContent>
           {overrides.length === 0 ? (
             <EmptyState
-              title="No holidays or overrides recorded yet."
-              description="Overrides declare a date as a holiday, or turn a normally-off day into an exam-eligible working day."
+              title={t("coordinator.calendar.noHolidaysTitle")}
+              description={t("coordinator.calendar.noHolidaysDescription")}
             />
           ) : (
             <div className="flex flex-col gap-3">
@@ -155,17 +166,17 @@ export default async function CoordinatorCalendarPage() {
                 <div key={o.id} className="rounded-xl border border-neutral-200 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-neutral-900">{o.date}</p>
+                      <p className="text-sm font-semibold text-neutral-900"><Bdi>{o.date}</Bdi></p>
                       <p className="text-xs text-neutral-500">
-                        {o.name}
+                        <Bdi>{o.name}</Bdi>
                         {o.day_status === "holiday" && o.holiday_type
-                          ? ` · ${formatHolidayType(o.holiday_type)}`
+                          ? <> · {formatHolidayType(o.holiday_type)}</>
                           : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={o.day_status === "holiday" ? "warning" : "success"}>
-                        {o.day_status === "holiday" ? "Holiday" : "Working day"}
+                        {o.day_status === "holiday" ? t("coordinator.calendar.holiday") : t("coordinator.calendar.workingDay")}
                       </Badge>
                       {canManage && (
                         <form
@@ -178,13 +189,13 @@ export default async function CoordinatorCalendarPage() {
                             type="submit"
                             className="rounded-lg bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-900 hover:bg-neutral-200"
                           >
-                            Delete
+                            {t("coordinator.calendar.delete")}
                           </button>
                         </form>
                       )}
                     </div>
                   </div>
-                  {o.notes && <p className="mt-2 text-sm text-neutral-700">{o.notes}</p>}
+                  {o.notes && <p className="mt-2 text-sm text-neutral-700"><Bdi>{o.notes}</Bdi></p>}
                 </div>
               ))}
             </div>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ToastProvider, useToast } from "@/components/ui/toast";
+import { useTranslation } from "@/lib/i18n/locale-provider";
 
 import { updatePassPercentage } from "./actions";
 
@@ -15,6 +16,7 @@ interface SettingsClientProps {
 
 function SettingsInner({ initialPassPercentage }: SettingsClientProps) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [value, setValue] = useState(String(initialPassPercentage));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -32,21 +34,20 @@ function SettingsInner({ initialPassPercentage }: SettingsClientProps) {
       return;
     }
 
-    toast("Pass percentage updated", "success");
+    toast(t("owner.settings.updated"), "success");
   };
 
   return (
     <div className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Settings</h1>
-      <p className="mt-1 text-sm text-neutral-500">School-wide examination settings.</p>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.settings")}</h1>
+      <p className="mt-1 text-sm text-neutral-500">{t("owner.settings.subtitle")}</p>
 
       <div className="mt-5 max-w-md">
         <Card>
           <CardHeader>
-            <CardTitle>Pass percentage</CardTitle>
+            <CardTitle>{t("owner.settings.passPercentage")}</CardTitle>
             <p className="mt-1 text-sm text-neutral-500">
-              The minimum percentage a student needs to pass any test. Applies school-wide -
-              every result&apos;s pass/fail status is computed against this value automatically.
+              {t("owner.settings.passPercentageDescription")}
             </p>
           </CardHeader>
           <CardContent>
@@ -58,7 +59,7 @@ function SettingsInner({ initialPassPercentage }: SettingsClientProps) {
               )}
               <div className="max-w-[160px]">
                 <Input
-                  label="Pass percentage"
+                  label={t("owner.settings.passPercentage")}
                   type="number"
                   inputMode="decimal"
                   min={1}
@@ -68,7 +69,7 @@ function SettingsInner({ initialPassPercentage }: SettingsClientProps) {
                 />
               </div>
               <Button type="submit" loading={saving} className="self-start">
-                Save
+                {t("common.save")}
               </Button>
             </form>
           </CardContent>

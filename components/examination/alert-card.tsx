@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Bdi } from "@/components/shared/bdi";
+import { useTranslation } from "@/lib/i18n/locale-provider";
 import {
   ALERT_SEVERITY_BADGE_VARIANT,
   ALERT_SEVERITY_LABEL,
@@ -12,19 +14,23 @@ import {
   type AlertWithTeacher
 } from "@/components/examination/alert-types";
 
-function formatRelativeOrDate(iso: string): string {
+function formatRelativeOrDate(
+  iso: string,
+  t: (key: string) => string,
+  locale: string
+): string {
   const date = new Date(iso);
   const diffMs = Date.now() - date.getTime();
   const diffMinutes = Math.round(diffMs / 60000);
 
-  if (diffMinutes < 1) return "just now";
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffMinutes < 1) return t("alerts.justNow");
+  if (diffMinutes < 60) return `${diffMinutes}${t("alerts.minutesAgoSuffix")}`;
   const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 24) return `${diffHours}${t("alerts.hoursAgoSuffix")}`;
   const diffDays = Math.round(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 7) return `${diffDays}${t("alerts.daysAgoSuffix")}`;
 
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(locale === "ur" ? "ur-PK" : "en-US", {
     month: "short",
     day: "numeric",
     year: "numeric"
@@ -41,6 +47,7 @@ interface AlertCardProps {
 }
 
 export function AlertCard({ alert, showTeacher = false, onResolve }: AlertCardProps) {
+  const { t, locale } = useTranslation();
   const [resolving, setResolving] = useState(false);
 
   const handleResolve = async () => {
@@ -58,25 +65,31 @@ export function AlertCard({ alert, showTeacher = false, onResolve }: AlertCardPr
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-semibold text-neutral-900">
-              {ALERT_TYPE_LABEL[alert.type]}
+              {t(ALERT_TYPE_LABEL[alert.type])}
             </span>
             <Badge variant={ALERT_SEVERITY_BADGE_VARIANT[alert.severity]}>
-              {ALERT_SEVERITY_LABEL[alert.severity]}
+              {t(ALERT_SEVERITY_LABEL[alert.severity])}
             </Badge>
           </div>
-          <p className="break-words text-sm text-neutral-700">{alert.message}</p>
+          <p className="break-words text-sm text-neutral-700">
+            <Bdi>{alert.message}</Bdi>
+          </p>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-500">
-            <span>{formatRelativeOrDate(alert.created_at)}</span>
+            <span>{formatRelativeOrDate(alert.created_at, t, locale)}</span>
             {showTeacher && alert.teacherName && (
               <>
                 <span aria-hidden="true">-</span>
-                <span className="truncate">Teacher: {alert.teacherName}</span>
+                <span className="truncate">
+                  {t("alerts.teacherLabel")} <Bdi>{alert.teacherName}</Bdi>
+                </span>
               </>
             )}
             {alert.status === "resolved" && alert.resolved_at && (
               <>
                 <span aria-hidden="true">-</span>
-                <span>Resolved {formatRelativeOrDate(alert.resolved_at)}</span>
+                <span>
+                  {t("alerts.resolvedPrefix")} {formatRelativeOrDate(alert.resolved_at, t, locale)}
+                </span>
               </>
             )}
           </div>
@@ -84,7 +97,7 @@ export function AlertCard({ alert, showTeacher = false, onResolve }: AlertCardPr
         {onResolve && alert.status === "open" && (
           <div className="shrink-0">
             <Button variant="secondary" size="sm" loading={resolving} onClick={handleResolve}>
-              Resolve
+              {t("alerts.resolve")}
             </Button>
           </div>
         )}

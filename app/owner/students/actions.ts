@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAnyRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import type { StudentImportRow } from "@/lib/utils/csv";
+import { getT } from "@/lib/i18n/get-translator";
 
 const STUDENTS_PATH = "/owner/students";
 
@@ -15,12 +16,13 @@ export async function addStudent(
 ): Promise<{ error: string | null }> {
   await requireAnyRole(["owner", "principal", "clerk"]);
   const supabase = createClient();
+  const t = await getT();
 
   const name = input.name.trim();
   const rollNo = input.roll_no.trim();
 
-  if (!name) return { error: "Name is required." };
-  if (!rollNo) return { error: "Roll number is required." };
+  if (!name) return { error: t("owner.students.nameRequired") };
+  if (!rollNo) return { error: t("owner.students.rollNoRequired") };
 
   const { error } = await supabase.from("students").insert({
     class_id: classId,
@@ -31,7 +33,7 @@ export async function addStudent(
 
   if (error) {
     if (error.code === "23505") {
-      return { error: `Roll number "${rollNo}" already exists in this section.` };
+      return { error: `${t("owner.students.rollNoExistsPrefix")} "${rollNo}" ${t("owner.students.rollNoExistsSuffix")}` };
     }
     return { error: error.message };
   }
@@ -86,6 +88,7 @@ export async function importStudents(
 ): Promise<{ error: string | null; summary?: ImportSummary }> {
   await requireAnyRole(["owner", "principal", "clerk"]);
   const supabase = createClient();
+  const t = await getT();
 
   const skipped: { roll_no: string; reason: string }[] = [];
   let imported = 0;
@@ -101,7 +104,7 @@ export async function importStudents(
     if (error) {
       skipped.push({
         roll_no: row.roll_no,
-        reason: error.code === "23505" ? "Roll number already exists" : error.message
+        reason: error.code === "23505" ? t("owner.students.rollNoAlreadyExists") : error.message
       });
       continue;
     }

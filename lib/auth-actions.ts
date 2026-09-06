@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { usernameToSyntheticEmail } from "@/lib/auth/username";
 import { ROLE_HOME_PATH } from "@/lib/auth/roles";
+import { getT } from "@/lib/i18n/get-translator";
 
 /**
  * Accepts either a real email (owner accounts) or a username (most teacher
@@ -15,6 +16,7 @@ export async function signIn(
   identifier: string,
   password: string
 ): Promise<{ error: string | null }> {
+  const t = await getT();
   const trimmedIdentifier = identifier.trim();
   const email = trimmedIdentifier.includes("@")
     ? trimmedIdentifier
@@ -27,7 +29,7 @@ export async function signIn(
   });
 
   if (error || !data.user) {
-    return { error: error?.message ?? "Unable to sign in." };
+    return { error: error?.message ?? t("auth.genericSignInError") };
   }
 
   const { data: profile } = await supabase
@@ -38,7 +40,7 @@ export async function signIn(
 
   if (!profile || !profile.is_active) {
     await supabase.auth.signOut();
-    return { error: "This account is not active. Contact the school owner." };
+    return { error: t("auth.accountNotActive") };
   }
 
   redirect(ROLE_HOME_PATH[profile.role as keyof typeof ROLE_HOME_PATH] ?? "/teacher");

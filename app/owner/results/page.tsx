@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { Class, Subject } from "@/types/examination";
+import { getT } from "@/lib/i18n/get-translator";
+import { Bdi } from "@/components/shared/bdi";
 
 interface ScheduleItemRow {
   id: string;
@@ -29,6 +31,7 @@ function formatDate(iso: string): string {
 
 export default async function ResultsPage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [completedRes, classesRes, subjectsRes, resultsRes, studentsRes] = await Promise.all([
     supabase
@@ -59,17 +62,16 @@ export default async function ResultsPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Results</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.results")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Every completed test and how many students have been graded so far. Enter marks from a
-        teacher&apos;s exam detail page.
+        {t("owner.results.subtitle")}
       </p>
 
       <div className="mt-5">
         {completedItems.length === 0 ? (
           <EmptyState
-            title="No completed tests yet"
-            description="Once a test is scheduled, submitted, and marked conducted, it will show up here for results tracking."
+            title={t("owner.results.emptyTitle")}
+            description={t("owner.results.emptyDescription")}
           />
         ) : (
           <ul className="flex flex-col gap-2">
@@ -84,15 +86,15 @@ export default async function ResultsPage() {
                     className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 hover:shadow-sm"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-neutral-900">{item.title}</p>
+                      <p className="truncate text-sm font-medium text-neutral-900"><Bdi>{item.title}</Bdi></p>
                       <p className="text-xs text-neutral-500">
-                        {subjectById.get(item.subject_id)?.name ?? "Unknown subject"} ·{" "}
-                        {classById.get(item.class_id)?.name ?? "Unknown class"} ·{" "}
-                        {formatDate(item.scheduled_date)}
+                        <Bdi>{subjectById.get(item.subject_id)?.name ?? t("owner.papers.unknownSubject")}</Bdi> ·{" "}
+                        <Bdi>{classById.get(item.class_id)?.name ?? t("owner.papers.unknownClass")}</Bdi> ·{" "}
+                        <Bdi>{formatDate(item.scheduled_date)}</Bdi>
                       </p>
                     </div>
                     <Badge variant={complete ? "success" : "warning"}>
-                      {graded}/{totalStudents || "?"} graded
+                      <Bdi>{graded}/{totalStudents || "?"}</Bdi> {t("owner.results.gradedSuffix")}
                     </Badge>
                   </Link>
                 </li>

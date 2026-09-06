@@ -13,6 +13,7 @@ import {
   type SubjectPerformance,
   type WeakTopic
 } from "@/components/examination/performance-types";
+import { getT } from "@/lib/i18n/get-translator";
 
 interface PassAcc {
   passed: number;
@@ -34,6 +35,7 @@ function bumpAcc(map: Map<string, PassAcc>, key: string, didPass: boolean) {
  */
 export default async function PrincipalPerformancePage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [resultsRes, scheduleRes, classesRes, subjectsRes, chaptersRes, topicsRes] =
     await Promise.all([
@@ -50,15 +52,15 @@ export default async function PrincipalPerformancePage() {
   if (gradedResults.length === 0) {
     return (
       <main className="p-4 sm:p-6">
-        <h1 className="text-xl font-semibold text-neutral-900">Performance</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("nav.performance")}</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Aggregate pass-rate analytics across classes, subjects, and topics.
+          {t("principal.performance.subtitle")}
         </p>
 
         <div className="mt-5">
           <EmptyState
-            title="No results yet"
-            description="Performance analytics will appear here once teachers start entering test results."
+            title={t("principal.performance.emptyTitle")}
+            description={t("principal.performance.emptyDescription")}
           />
         </div>
       </main>
@@ -142,9 +144,9 @@ export default async function PrincipalPerformancePage() {
       ...makePassRateStat(acc.passed, acc.total),
       topicId,
       topicName: topic.name,
-      chapterName: chapter?.name ?? "Unknown chapter",
-      subjectName: subject?.name ?? "Unknown subject",
-      className: cls?.name ?? "Unknown class"
+      chapterName: chapter?.name ?? t("principal.common.unknownChapter"),
+      subjectName: subject?.name ?? t("principal.common.unknownSubject"),
+      className: cls?.name ?? t("principal.common.unknownClass")
     });
   }
 
@@ -154,9 +156,9 @@ export default async function PrincipalPerformancePage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Performance</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.performance")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Aggregate pass-rate analytics across classes, subjects, and topics.
+        {t("principal.performance.subtitle")}
       </p>
 
       <div className="mt-5">

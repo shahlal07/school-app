@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AlertInbox } from "@/components/examination/alert-inbox";
 
 import { resolveAlert } from "@/app/owner/alerts/actions";
+import { getT } from "@/lib/i18n/get-translator";
 
 /**
  * Full mirror of app/owner/alerts/page.tsx. academic_coordinator has
@@ -15,6 +16,7 @@ import { resolveAlert } from "@/app/owner/alerts/actions";
  */
 export default async function CoordinatorAlertsPage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [alertsRes, profilesRes] = await Promise.all([
     supabase.from("alerts").select("*").order("created_at", { ascending: false }),
@@ -40,9 +42,9 @@ export default async function CoordinatorAlertsPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Alerts</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("coordinator.alerts.title")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Compliance issues detected automatically across papers, tests, and results.
+        {t("coordinator.alerts.subtitle")}
       </p>
 
       <div className="mt-5">

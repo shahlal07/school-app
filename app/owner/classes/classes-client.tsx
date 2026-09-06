@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ToastProvider } from "@/components/ui/toast";
 import type { Profile } from "@/types/database";
 import type { Class, ClassTeacher, Section } from "@/types/examination";
+import { useTranslation } from "@/lib/i18n/locale-provider";
+import { Bdi } from "@/components/shared/bdi";
 
 import { AssignClassTeacherDialog, type ClassSectionTarget } from "./assign-class-teacher-dialog";
 
@@ -29,6 +31,7 @@ interface SectionRow {
 
 function ClassesInner({ classes, sections, classTeachers, teachers }: ClassesClientProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [target, setTarget] = useState<ClassSectionTarget | null>(null);
 
   const teacherByUserId = useMemo(() => new Map(teachers.map((t) => [t.user_id, t])), [teachers]);
@@ -58,8 +61,8 @@ function ClassesInner({ classes, sections, classTeachers, teachers }: ClassesCli
     <>
       {rows.length === 0 ? (
         <EmptyState
-          title="No sections yet"
-          description="Add classes and sections first, then come back to assign homeroom teachers."
+          title={t("owner.classes.noSectionsYet")}
+          description={t("owner.classes.noSectionsYetDescription")}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -67,12 +70,12 @@ function ClassesInner({ classes, sections, classTeachers, teachers }: ClassesCli
             <Card key={`${row.classId}:${row.sectionId}`}>
               <CardContent className="flex items-center justify-between gap-3 py-4">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-neutral-900">{row.classLabel}</p>
+                  <p className="truncate text-sm font-semibold text-neutral-900"><Bdi>{row.classLabel}</Bdi></p>
                   {row.teacher ? (
-                    <p className="mt-1 truncate text-sm text-neutral-600">{row.teacher.full_name}</p>
+                    <p className="mt-1 truncate text-sm text-neutral-600"><Bdi>{row.teacher.full_name}</Bdi></p>
                   ) : (
                     <Badge variant="warning" className="mt-1">
-                      Unassigned
+                      {t("owner.classes.unassigned")}
                     </Badge>
                   )}
                 </div>
@@ -88,7 +91,7 @@ function ClassesInner({ classes, sections, classTeachers, teachers }: ClassesCli
                     })
                   }
                 >
-                  {row.teacher ? "Change" : "Assign"}
+                  {row.teacher ? t("owner.classes.change") : t("owner.classes.assign")}
                 </Button>
               </CardContent>
             </Card>

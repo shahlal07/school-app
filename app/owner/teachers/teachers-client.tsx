@@ -14,6 +14,8 @@ import { ToastProvider, useToast } from "@/components/ui/toast";
 import type { Profile, StaffRole } from "@/types/database";
 import type { Class, Subject } from "@/types/examination";
 import { STAFF_ROLES, ROLE_LABELS } from "@/lib/auth/roles";
+import { useTranslation } from "@/lib/i18n/locale-provider";
+import { Bdi } from "@/components/shared/bdi";
 
 import { createTeacherAccount, resetTeacherPassword, setTeacherActive } from "./actions";
 import { AssignSubjectsDialog, type TeacherAssignmentRow } from "./assign-subjects-dialog";
@@ -37,6 +39,7 @@ function CreateTeacherDialog({
   const [role, setRole] = useState<StaffRole>("teacher");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   function reset() {
     setFullName("");
@@ -52,7 +55,7 @@ function CreateTeacherDialog({
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Passwords don't match.");
+      setError(t("owner.teachers.passwordsDontMatch"));
       return;
     }
 
@@ -76,8 +79,8 @@ function CreateTeacherDialog({
         reset();
         onClose();
       }}
-      title="Create an account"
-      description="Set a username and password yourself, then give them to the person directly - no email needed."
+      title={t("owner.teachers.createAccountTitle")}
+      description={t("owner.teachers.createAccountDescription")}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -86,23 +89,23 @@ function CreateTeacherDialog({
           </p>
         )}
         <Input
-          label="Full name"
+          label={t("owner.teachers.fullName")}
           value={fullName}
           onChange={(event) => setFullName(event.target.value)}
           autoFocus
           required
         />
         <Input
-          label="Username"
+          label={t("owner.teachers.username")}
           value={username}
           onChange={(event) => setUsername(event.target.value)}
           autoComplete="off"
-          placeholder="e.g. ahmed.khan"
+          placeholder={t("owner.teachers.usernamePlaceholder")}
           required
         />
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-neutral-700" htmlFor="create-role">
-            Role
+            {t("owner.teachers.role")}
           </label>
           <select
             id="create-role"
@@ -118,7 +121,7 @@ function CreateTeacherDialog({
           </select>
         </div>
         <Input
-          label="Password"
+          label={t("owner.teachers.password")}
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -126,7 +129,7 @@ function CreateTeacherDialog({
           required
         />
         <Input
-          label="Confirm password"
+          label={t("owner.teachers.confirmPassword")}
           type="password"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
@@ -142,10 +145,10 @@ function CreateTeacherDialog({
               onClose();
             }}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" loading={submitting}>
-            Create account
+            {t("owner.teachers.createAccount")}
           </Button>
         </div>
       </form>
@@ -166,6 +169,7 @@ function ResetPasswordDialog({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -173,7 +177,7 @@ function ResetPasswordDialog({
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Passwords don't match.");
+      setError(t("owner.teachers.passwordsDontMatch"));
       return;
     }
 
@@ -195,8 +199,8 @@ function ResetPasswordDialog({
     <Dialog
       open={!!teacher}
       onClose={onClose}
-      title={`Reset password for ${teacher?.full_name ?? ""}`}
-      description="They'll need this new password to sign in - there's no email recovery for username accounts."
+      title={`${t("owner.teachers.resetPasswordForPrefix")} ${teacher?.full_name ?? ""}`}
+      description={t("owner.teachers.resetPasswordDescription")}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -205,7 +209,7 @@ function ResetPasswordDialog({
           </p>
         )}
         <Input
-          label="New password"
+          label={t("owner.teachers.newPassword")}
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -214,7 +218,7 @@ function ResetPasswordDialog({
           required
         />
         <Input
-          label="Confirm new password"
+          label={t("owner.teachers.confirmNewPassword")}
           type="password"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
@@ -223,10 +227,10 @@ function ResetPasswordDialog({
         />
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" loading={submitting}>
-            Reset password
+            {t("owner.teachers.resetPassword")}
           </Button>
         </div>
       </form>
@@ -244,6 +248,7 @@ interface TeachersClientProps {
 function TeachersInner({ teachers, classes, subjectsByClass, assignments }: TeachersClientProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [createOpen, setCreateOpen] = useState(false);
   const [resettingTeacher, setResettingTeacher] = useState<Profile | null>(null);
   const [assigningTeacher, setAssigningTeacher] = useState<Profile | null>(null);
@@ -257,7 +262,7 @@ function TeachersInner({ teachers, classes, subjectsByClass, assignments }: Teac
     }
 
     toast(
-      teacher.is_active ? `Deactivated ${teacher.full_name}` : `Reactivated ${teacher.full_name}`,
+      `${teacher.is_active ? t("owner.teachers.deactivated") : t("owner.teachers.reactivated")} ${teacher.full_name}`,
       "success"
     );
   }
@@ -269,17 +274,17 @@ function TeachersInner({ teachers, classes, subjectsByClass, assignments }: Teac
   return (
     <div className="p-4 sm:p-6">
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-neutral-900">Staff</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">{t("nav.staff")}</h1>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
-          Create account
+          {t("owner.teachers.createAccount")}
         </Button>
       </div>
 
       {teachers.length === 0 ? (
         <EmptyState
-          title="No staff yet"
-          description="Create your first staff account to get started."
-          actionLabel="Create account"
+          title={t("owner.teachers.noStaffYet")}
+          description={t("owner.teachers.noStaffYetDescription")}
+          actionLabel={t("owner.teachers.createAccount")}
           onAction={() => setCreateOpen(true)}
         />
       ) : (
@@ -291,18 +296,18 @@ function TeachersInner({ teachers, classes, subjectsByClass, assignments }: Teac
                 <CardHeader className="flex flex-row items-center gap-3">
                   <Avatar name={teacher.full_name} size="md" />
                   <div className="min-w-0 flex-1">
-                    <CardTitle className="truncate">{teacher.full_name}</CardTitle>
+                    <CardTitle className="truncate"><Bdi>{teacher.full_name}</Bdi></CardTitle>
                     {teacher.username && (
-                      <p className="truncate text-xs text-neutral-500">@{teacher.username}</p>
+                      <p className="truncate text-xs text-neutral-500">@<Bdi>{teacher.username}</Bdi></p>
                     )}
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       <Badge variant={teacher.is_active ? "success" : "neutral"}>
-                        {teacher.is_active ? "Active" : "Inactive"}
+                        {teacher.is_active ? t("status.active") : t("owner.teachers.inactive")}
                       </Badge>
                       <Badge variant="neutral">{ROLE_LABELS[teacher.role]}</Badge>
                       {teacher.role === "teacher" && (
                         <Badge variant={count > 0 ? "info" : "warning"}>
-                          {count} {count === 1 ? "subject" : "subjects"}
+                          <Bdi>{count}</Bdi> {count === 1 ? t("owner.reports.subjectSingular") : t("owner.reports.subjectsSuffix")}
                         </Badge>
                       )}
                     </div>
@@ -311,7 +316,7 @@ function TeachersInner({ teachers, classes, subjectsByClass, assignments }: Teac
                 <CardContent className="flex flex-wrap gap-2">
                   {teacher.role === "teacher" && (
                     <Button variant="secondary" size="sm" onClick={() => setAssigningTeacher(teacher)}>
-                      Assign subjects
+                      {t("owner.teachers.assignSubjects")}
                     </Button>
                   )}
                   <Button
@@ -319,10 +324,10 @@ function TeachersInner({ teachers, classes, subjectsByClass, assignments }: Teac
                     size="sm"
                     onClick={() => handleToggleActive(teacher)}
                   >
-                    {teacher.is_active ? "Deactivate" : "Reactivate"}
+                    {teacher.is_active ? t("owner.teachers.deactivate") : t("owner.teachers.reactivate")}
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setResettingTeacher(teacher)}>
-                    Reset password
+                    {t("owner.teachers.resetPassword")}
                   </Button>
                 </CardContent>
               </Card>
@@ -336,7 +341,7 @@ function TeachersInner({ teachers, classes, subjectsByClass, assignments }: Teac
         onClose={() => setCreateOpen(false)}
         onCreated={(fullName) => {
           setCreateOpen(false);
-          toast(`${fullName}'s account created`, "success");
+          toast(`${fullName} ${t("owner.teachers.accountCreatedSuffix")}`, "success");
         }}
       />
 
@@ -344,7 +349,7 @@ function TeachersInner({ teachers, classes, subjectsByClass, assignments }: Teac
         teacher={resettingTeacher}
         onClose={() => setResettingTeacher(null)}
         onReset={() => {
-          toast("Password reset", "success");
+          toast(t("owner.teachers.passwordResetToast"), "success");
           setResettingTeacher(null);
         }}
       />

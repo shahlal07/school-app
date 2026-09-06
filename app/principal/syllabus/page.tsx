@@ -2,6 +2,7 @@ import type { Chapter, Class, Subject, Topic } from "@/types/examination";
 import { createClient } from "@/lib/supabase/server";
 import { SyllabusManager } from "@/components/examination/syllabus-manager";
 import { classOrderIndex } from "@/components/examination/constants";
+import { getT } from "@/lib/i18n/get-translator";
 
 /**
  * Read-only mirror of app/owner/syllabus/page.tsx, using the exact same
@@ -13,6 +14,7 @@ import { classOrderIndex } from "@/components/examination/constants";
  */
 export default async function PrincipalSyllabusPage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [classesRes, subjectsRes, chaptersRes, topicsRes] = await Promise.all([
     supabase.from("classes").select("*"),
@@ -46,9 +48,9 @@ export default async function PrincipalSyllabusPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Syllabus</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.syllabus")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Subjects, chapters, and topics for every class. Editing happens on the owner side.
+        {t("principal.syllabus.subtitle")}
       </p>
 
       <div className="mt-5">

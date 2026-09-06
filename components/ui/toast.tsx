@@ -9,6 +9,8 @@ import React, {
   useEffect
 } from "react";
 
+import { useTranslation } from "@/lib/i18n/locale-provider";
+
 type ToastVariant = "success" | "warning" | "danger" | "info";
 
 interface ToastItem {
@@ -37,6 +39,7 @@ const variantStyles: Record<ToastVariant, string> = {
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -72,19 +75,19 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         aria-atomic="true"
         className="fixed top-4 left-4 right-4 z-50 flex flex-col gap-2 sm:left-auto sm:right-4 sm:w-80"
       >
-        {toasts.map((t) => (
+        {toasts.map((toastItem) => (
           <div
-            key={t.id}
+            key={toastItem.id}
             className={`pointer-events-auto flex items-center justify-between gap-3 rounded-xl px-4 py-3 shadow-toast transition-all duration-300 ${
-              variantStyles[t.variant ?? "info"]
+              variantStyles[toastItem.variant ?? "info"]
             }`}
             role="status"
           >
-            <span className="text-sm font-medium">{t.message}</span>
+            <span className="text-sm font-medium">{toastItem.message}</span>
             <button
-              onClick={() => remove(t.id)}
+              onClick={() => remove(toastItem.id)}
               className="shrink-0 rounded-lg p-1 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/50"
-              aria-label="Dismiss notification"
+              aria-label={t("system.dismissNotification")}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-current">
                 <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import type { GeneratedScheduleItem } from "@/lib/scheduling/generate-schedule";
+import { getT } from "@/lib/i18n/get-translator";
 
 type ActionResult = { error: string | null; count?: number };
 
@@ -29,9 +30,10 @@ export async function saveGeneratedSchedule(
   input: SaveScheduleInput
 ): Promise<ActionResult> {
   await requireRole("academic_coordinator");
+  const t = await getT();
 
   if (input.items.length === 0) {
-    return { error: "Nothing to save - generate a preview first." };
+    return { error: t("owner.schedule.nothingToSave") };
   }
 
   const supabase = createClient();

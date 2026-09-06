@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { findNextEligibleExamDay } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "@/lib/i18n/locale-provider";
+import { Bdi } from "@/components/shared/bdi";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -15,6 +17,7 @@ function todayISO(): string {
  * findNextEligibleExamDay in ./actions.ts) since it has no side effects.
  */
 export function NextEligibleDayWidget() {
+  const { t } = useTranslation();
   const [fromDate, setFromDate] = useState(todayISO());
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{
@@ -34,12 +37,11 @@ export function NextEligibleDayWidget() {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-neutral-500">
-        Find the next date on or after a given date that is eligible for exam scheduling
-        (not a weekend or a declared holiday, per the current calendar overrides).
+        {t("coordinator.calendar.findDayHelp")}
       </p>
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-sm">
-          From date
+          {t("coordinator.calendar.fromDate")}
           <input
             type="date"
             value={fromDate}
@@ -48,7 +50,7 @@ export function NextEligibleDayWidget() {
           />
         </label>
         <Button type="button" variant="secondary" onClick={handleCheck} loading={pending}>
-          Find next eligible day
+          {t("coordinator.calendar.findNextEligibleDay")}
         </Button>
       </div>
       {result && (
@@ -57,10 +59,10 @@ export function NextEligibleDayWidget() {
             <p className="text-danger-600">{result.error}</p>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium text-neutral-900">{result.eligibleDate}</span>
+              <span className="font-medium text-neutral-900"><Bdi>{result.eligibleDate}</Bdi></span>
               {result.isEligible !== null && (
                 <Badge variant={result.isEligible ? "success" : "warning"}>
-                  {result.isEligible ? "eligible" : "not eligible"}
+                  {result.isEligible ? t("coordinator.calendar.eligible") : t("coordinator.calendar.notEligible")}
                 </Badge>
               )}
               {result.reason && <span className="text-neutral-500">{result.reason}</span>}

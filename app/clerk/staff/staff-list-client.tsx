@@ -11,6 +11,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { ToastProvider, useToast } from "@/components/ui/toast";
+import { Bdi } from "@/components/shared/bdi";
+import { useTranslation } from "@/lib/i18n/locale-provider";
 import type { Profile } from "@/types/database";
 
 import { updateStaffRecordFields } from "./actions";
@@ -24,6 +26,7 @@ function EditStaffRecordDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [designation, setDesignation] = useState(teacher?.designation ?? "");
   const [joiningDate, setJoiningDate] = useState(teacher?.joining_date ?? "");
   const [submitting, setSubmitting] = useState(false);
@@ -56,8 +59,8 @@ function EditStaffRecordDialog({
       key={teacher?.id ?? "none"}
       open={!!teacher}
       onClose={onClose}
-      title={`Edit staff record for ${teacher?.full_name ?? ""}`}
-      description="Sets designation and joining date via the set_staff_record_fields function."
+      title={`${t("clerk.staff.editDialogTitlePrefix")} ${teacher?.full_name ?? ""}`}
+      description={t("clerk.staff.editDialogDescription")}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -66,24 +69,24 @@ function EditStaffRecordDialog({
           </p>
         )}
         <Input
-          label="Designation"
+          label={t("clerk.staff.designationLabel")}
           value={designation}
           onChange={(event) => setDesignation(event.target.value)}
-          placeholder="e.g. Senior Teacher, Head of Science"
+          placeholder={t("clerk.staff.designationInputPlaceholder")}
           autoFocus
         />
         <Input
-          label="Joining date"
+          label={t("clerk.staff.joiningDateLabel")}
           type="date"
           value={joiningDate ?? ""}
           onChange={(event) => setJoiningDate(event.target.value)}
         />
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" loading={submitting}>
-            Save
+            {t("common.save")}
           </Button>
         </div>
       </form>
@@ -98,14 +101,15 @@ interface StaffListClientProps {
 function StaffListInner({ teachers }: StaffListClientProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [editingTeacher, setEditingTeacher] = useState<Profile | null>(null);
 
   return (
     <div>
       {teachers.length === 0 ? (
         <EmptyState
-          title="No teaching staff yet"
-          description="Teacher accounts are created by the owner from Owner > Teachers."
+          title={t("clerk.staff.noStaffTitle")}
+          description={t("clerk.staff.noStaffDescription")}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -114,23 +118,31 @@ function StaffListInner({ teachers }: StaffListClientProps) {
               <CardHeader className="flex flex-row items-center gap-3">
                 <Avatar name={teacher.full_name} size="md" />
                 <div className="min-w-0 flex-1">
-                  <CardTitle className="truncate">{teacher.full_name}</CardTitle>
+                  <CardTitle className="truncate">
+                    <Bdi>{teacher.full_name}</Bdi>
+                  </CardTitle>
                   {teacher.username && (
-                    <p className="truncate text-xs text-neutral-500">@{teacher.username}</p>
+                    <p className="truncate text-xs text-neutral-500">
+                      @<Bdi>{teacher.username}</Bdi>
+                    </p>
                   )}
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
                     <Badge variant={teacher.is_active ? "success" : "neutral"}>
-                      {teacher.is_active ? "Active" : "Inactive"}
+                      {teacher.is_active ? t("status.active") : t("clerk.staff.inactive")}
                     </Badge>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-                  <dt className="text-neutral-500">Designation</dt>
-                  <dd className="text-neutral-900">{teacher.designation ?? "—"}</dd>
-                  <dt className="text-neutral-500">Joining date</dt>
-                  <dd className="text-neutral-900">{teacher.joining_date ?? "—"}</dd>
+                  <dt className="text-neutral-500">{t("clerk.staff.designationLabel")}</dt>
+                  <dd className="text-neutral-900">
+                    <Bdi>{teacher.designation ?? "—"}</Bdi>
+                  </dd>
+                  <dt className="text-neutral-500">{t("clerk.staff.joiningDateLabel")}</dt>
+                  <dd className="text-neutral-900">
+                    <Bdi>{teacher.joining_date ?? "—"}</Bdi>
+                  </dd>
                 </dl>
                 <Button
                   variant="secondary"
@@ -138,7 +150,7 @@ function StaffListInner({ teachers }: StaffListClientProps) {
                   className="mt-3"
                   onClick={() => setEditingTeacher(teacher)}
                 >
-                  Edit record
+                  {t("clerk.staff.editRecord")}
                 </Button>
               </CardContent>
             </Card>
@@ -151,7 +163,7 @@ function StaffListInner({ teachers }: StaffListClientProps) {
         onClose={() => setEditingTeacher(null)}
         onSaved={() => {
           setEditingTeacher(null);
-          toast("Staff record updated", "success");
+          toast(t("clerk.staff.toastUpdated"), "success");
           router.refresh();
         }}
       />

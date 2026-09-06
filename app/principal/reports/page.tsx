@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Class, Subject } from "@/types/examination";
 import type { Profile } from "@/types/database";
+import { getT } from "@/lib/i18n/get-translator";
+import { Bdi } from "@/components/shared/bdi";
 
 interface ScheduleItemRow {
   id: string;
@@ -25,6 +27,7 @@ interface ExamPaperRow {
  */
 export default async function PrincipalReportsPage() {
   const supabase = createClient();
+  const t = await getT();
 
   const [classesRes, subjectsRes, chaptersRes, scheduleRes, papersRes, teachersRes, teacherSubjectsRes] =
     await Promise.all([
@@ -80,15 +83,15 @@ export default async function PrincipalReportsPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Reports</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">{t("nav.reports")}</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Operational summaries computed from real data - syllabus coverage and teacher compliance.
+        {t("principal.reports.subtitle")}
       </p>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Syllabus coverage by class</CardTitle>
+            <CardTitle>{t("principal.reports.syllabusCoverageByClass")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="flex flex-col gap-2">
@@ -97,9 +100,11 @@ export default async function PrincipalReportsPage() {
                   key={klass.id}
                   className="flex items-center justify-between gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm"
                 >
-                  <span className="font-medium text-neutral-800">{klass.name}</span>
+                  <span className="font-medium text-neutral-800">
+                    <Bdi>{klass.name}</Bdi>
+                  </span>
                   <Badge variant={withSyllabus === total && total > 0 ? "success" : "neutral"}>
-                    {withSyllabus} / {total} subjects
+                    <Bdi>{withSyllabus}</Bdi> / <Bdi>{total}</Bdi> {t("principal.reports.subjectsLabel")}
                   </Badge>
                 </li>
               ))}
@@ -109,11 +114,11 @@ export default async function PrincipalReportsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Teacher compliance</CardTitle>
+            <CardTitle>{t("intelligence.teacherCompliance")}</CardTitle>
           </CardHeader>
           <CardContent>
             {teachers.length === 0 ? (
-              <p className="text-sm text-neutral-500">No teachers yet.</p>
+              <p className="text-sm text-neutral-500">{t("principal.reports.noTeachersYet")}</p>
             ) : (
               <ul className="flex flex-col gap-2">
                 {teacherCompliance.map(({ teacher, total, papersSubmitted, assignedSubjects }) => (
@@ -122,9 +127,14 @@ export default async function PrincipalReportsPage() {
                     className="flex items-center justify-between gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-neutral-800">{teacher.full_name}</p>
+                      <p className="truncate font-medium text-neutral-800">
+                        <Bdi>{teacher.full_name}</Bdi>
+                      </p>
                       <p className="text-xs text-neutral-500">
-                        {assignedSubjects} {assignedSubjects === 1 ? "subject" : "subjects"} assigned
+                        <Bdi>{assignedSubjects}</Bdi>{" "}
+                        {assignedSubjects === 1
+                          ? t("principal.reports.subjectAssigned")
+                          : t("principal.reports.subjectsAssigned")}
                       </p>
                     </div>
                     <Badge
@@ -132,7 +142,13 @@ export default async function PrincipalReportsPage() {
                         total === 0 ? "neutral" : papersSubmitted === total ? "success" : "warning"
                       }
                     >
-                      {total === 0 ? "No tests yet" : `${papersSubmitted} / ${total} papers`}
+                      {total === 0 ? (
+                        t("principal.reports.noTestsYet")
+                      ) : (
+                        <>
+                          <Bdi>{papersSubmitted}</Bdi> / <Bdi>{total}</Bdi> {t("principal.reports.papersLabel")}
+                        </>
+                      )}
                     </Badge>
                   </li>
                 ))}
