@@ -20,6 +20,9 @@ interface OwnerMessagesClientProps {
   teachers: Profile[];
   messages: Message[];
   selectedTeacherId: string | null;
+  /** Base route this client is mounted at - owner and academic_coordinator
+   * both reuse this exact component from different segments. */
+  basePath?: string;
 }
 
 interface ConversationSummary {
@@ -72,7 +75,8 @@ function OwnerMessagesInner({
   ownerUserId,
   teachers,
   messages,
-  selectedTeacherId
+  selectedTeacherId,
+  basePath = "/owner/messages"
 }: OwnerMessagesClientProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -114,11 +118,11 @@ function OwnerMessagesInner({
   }, [selectedTeacherId, hasUnreadInSelectedThread]);
 
   function selectTeacher(teacherUserId: string) {
-    router.push(`/owner/messages?teacher=${teacherUserId}`);
+    router.push(`${basePath}?teacher=${teacherUserId}`);
   }
 
   function backToList() {
-    router.push("/owner/messages");
+    router.push(basePath);
   }
 
   async function handleReply(event: FormEvent<HTMLFormElement>) {

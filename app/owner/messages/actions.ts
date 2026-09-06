@@ -11,12 +11,11 @@ const MESSAGES_PATH = "/owner/messages";
 const COORDINATOR_MESSAGES_PATH = "/coordinator/messages";
 
 /**
- * Sends a message. Despite the name (kept for owner-side callers, where
- * recipientUserId is a teacher), this is also used by the coordinator
- * segment to message the owner - the RLS insert policy on messages
- * (0009_messages.sql) already allows any non-owner sender as long as the
- * recipient's role is 'owner', so widening this guard beyond owner-only is
- * safe without any migration change.
+ * Sends a message to a teacher (owner and academic_coordinator both have
+ * full messaging parity with every teacher - can_manage_academics() in the
+ * messages_insert RLS policy grants coordinator this same reach). Also used
+ * for messaging the owner (recipientUserId = owner's id) by any non-owner
+ * role, since messages_insert separately allows that direction for everyone.
  */
 export async function sendMessageToTeacher(
   recipientUserId: string,
@@ -52,9 +51,10 @@ export async function sendMessageToTeacher(
  * Fans a single compose action out into one message row per active
  * teacher, all sharing one freshly-generated broadcast_id so every
  * recipient's copy can be traced back to the same broadcast action.
+ * Owner and academic_coordinator both get this - full messaging parity.
  */
 export async function sendBroadcastToTeachers(body: string): Promise<ActionResult> {
-  const profile = await requireAnyRole(["owner"]);
+  const profile = await requireAnyRole(["owner", "academic_coordinator"]);
 
   const trimmedBody = body.trim();
   if (!trimmedBody) {
@@ -90,13 +90,14 @@ export async function sendBroadcastToTeachers(body: string): Promise<ActionResul
   }
 
   revalidatePath(MESSAGES_PATH);
+  revalidatePath(COORDINATOR_MESSAGES_PATH);
   return { error: null };
 }
 
 /**
  * Marks every unread message from the given counterpart (to the current
- * user) as read. Called when the owner opens a teacher's thread, or when
- * the coordinator opens their thread with the owner.
+ * user) as read. Called when the owner or coordinator opens a teacher's
+ * thread.
  */
 export async function markThreadReadForTeacher(teacherUserId: string): Promise<ActionResult> {
   const profile = await requireAnyRole(["owner", "academic_coordinator"]);

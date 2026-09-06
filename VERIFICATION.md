@@ -92,5 +92,20 @@ The owner created three real test accounts through the production UI itself (`te
 
 Security advisor re-run after this fix: identical 9 findings (8 expected `SECURITY DEFINER`-executable warnings for the intentional helper functions + the pre-existing leaked-password-protection warning) - no new findings introduced.
 
+### Coordinator messaging parity — added, plus a genuinely pre-existing bug found and fixed
+The owner asked for academic_coordinator to have full messaging parity with owner - message any teacher individually, plus broadcast to all. This required:
+- `messages_insert` RLS extended: `can_manage_academics() AND recipient has role 'teacher'` (additive, existing owner/recipient-is-owner clauses preserved).
+- `sendBroadcastToTeachers` in `app/owner/messages/actions.ts` widened from owner-only to `requireAnyRole(["owner","academic_coordinator"])`.
+- `/coordinator/messages` rewritten to reuse `OwnerMessagesClient` directly (the same contact-list + broadcast component, not the earlier single-thread-with-owner page a builder agent had correctly built against the pre-widening RLS reality) - `OwnerMessagesClient` gained a `basePath` prop so its internal `router.push` calls target `/coordinator/messages` instead of hardcoding `/owner/messages`.
+
+**A second, genuinely pre-existing bug was found while verifying this live** (unrelated to Phase A, present since the messaging feature was first built): `messages_insert`'s "is the recipient an owner" check was a raw `exists(select 1 from profiles where ...)` subquery embedded directly in the policy - which is itself subject to `profiles`' own RLS, evaluated as the sender's session. A teacher cannot see the owner's profile row through `profiles_select`, so this subquery silently returned `false` and **every teacher-to-owner message was being rejected by RLS** - confirmed live: a real INSERT from Ahmad's account to the owner failed with a genuine `new row violates row-level security policy` error before the fix. This had apparently never been live-tested with a real non-owner INSERT before now (only worked when *owner* sent, since `is_owner()` is `SECURITY DEFINER` and bypasses this entirely).
+
+Fixed via a new `SECURITY DEFINER` helper `user_has_role(target_user_id, target_role)` (same hardened pattern as `is_owner()`: empty `search_path`, revoked from `public`/`anon`) that checks a target user's role directly, bypassing `profiles` RLS - `messages_insert` now calls this instead of embedding raw cross-table subqueries. Re-verified live after the fix:
+- Teacher (Ahmad) → owner: now succeeds (previously failed).
+- Coordinator → teacher: succeeds.
+- Clerk → teacher: correctly rejected (not in `can_manage_academics()`).
+
+Migrations: `20260906134010_phase_a_coordinator_can_message_teachers`, `20260906134223_phase_a_fix_messages_recipient_role_check`. Security advisor re-run: one new expected `user_has_role` entry in the same already-accepted warning pattern, nothing else new. Full `tsc`/`lint`/`build` clean afterward.
+
 ### Still open
-1. Manual click-through verification of the new dashboards as the actual test-role accounts (vs. owner previewing them) has not been done - only the owner's own click-through (account creation, staff list) plus the SQL-level RLS proof above.
+1. Manual click-through verification of the new dashboards as the actual test-role accounts (vs. owner previewing them) has not been done - only the owner's own click-through (account creation, staff list, dashboard previews) plus the SQL-level RLS proof above.
