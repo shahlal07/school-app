@@ -9,7 +9,7 @@ import { ToastProvider, useToast } from "@/components/ui/toast";
 import { saveExamPaperDraft, submitExamPaper, submitExamPaperFile, type ExamPaperStatus } from "@/app/teacher/exams/[id]/actions";
 
 const STATUS_LABEL: Record<ExamPaperStatus, string> = { not_started: "Not started", draft: "Draft", submitted: "Submitted", under_review: "Under review", approved: "Approved", conducted: "Conducted", results_pending: "Results pending", completed: "Completed" };
-const STATUS_VARIANT: Record<ExamPaperStatus, "success" | "warning" | "danger" | "neutral" | "info"> = { not_started: "neutral", draft: "warning", submitted: "info", under_review: "info", approved: "success", conducted: "success", results_pending: "warning", completed: "Completed" as never };
+const STATUS_VARIANT: Record<ExamPaperStatus, "success" | "warning" | "danger" | "neutral" | "info"> = { not_started: "neutral", draft: "warning", submitted: "info", under_review: "info", approved: "success", conducted: "success", results_pending: "warning", completed: "success" };
 const TEACHER_EDITABLE_STATUSES: ExamPaperStatus[] = ["not_started", "draft", "submitted"];
 
 export interface ExamPaperEditorProps { scheduleItemId: string; status: ExamPaperStatus; initialContent: string; initialFilePath?: string | null; }
@@ -24,18 +24,11 @@ function ExamPaperEditorInner({ scheduleItemId, status, initialContent, initialF
   const [submitting, setSubmitting] = useState(false);
   const canEdit = TEACHER_EDITABLE_STATUSES.includes(status);
 
-  const handleSaveDraft = async () => {
-    setSavingDraft(true); const result = await saveExamPaperDraft(scheduleItemId, content); setSavingDraft(false);
-    if (result.error) return toast(result.error, "danger"); toast("Draft saved", "success"); router.refresh();
-  };
+  const handleSaveDraft = async () => { setSavingDraft(true); const result = await saveExamPaperDraft(scheduleItemId, content); setSavingDraft(false); if (result.error) return toast(result.error, "danger"); toast("Draft saved", "success"); router.refresh(); };
   const handleSubmit = async () => {
     const file = fileRef.current?.files?.[0];
-    if (file) {
-      setSubmitting(true); const data = new FormData(); data.set("file", file); const result = await submitExamPaperFile(scheduleItemId, content, data); setSubmitting(false);
-      if (result.error) return toast(result.error, "danger"); toast("Paper uploaded and submitted. Clerk and coordinator can now see it.", "success"); if (fileRef.current) fileRef.current.value = ""; setFileSelected(false); router.refresh(); return;
-    }
-    setSubmitting(true); const result = await submitExamPaper(scheduleItemId, content); setSubmitting(false);
-    if (result.error) return toast(result.error, "danger"); toast("Paper submitted for review", "success"); router.refresh();
+    if (file) { setSubmitting(true); const data = new FormData(); data.set("file", file); const result = await submitExamPaperFile(scheduleItemId, content, data); setSubmitting(false); if (result.error) return toast(result.error, "danger"); toast("Paper uploaded and submitted. Clerk and coordinator can now see it.", "success"); if (fileRef.current) fileRef.current.value = ""; setFileSelected(false); router.refresh(); return; }
+    setSubmitting(true); const result = await submitExamPaper(scheduleItemId, content); setSubmitting(false); if (result.error) return toast(result.error, "danger"); toast("Paper submitted for review", "success"); router.refresh();
   };
 
   return <div className="flex flex-col gap-3">
