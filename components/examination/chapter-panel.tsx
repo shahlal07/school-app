@@ -21,9 +21,17 @@ interface ChapterPanelProps {
   subjectId: string;
   chapters: Chapter[];
   topicsByChapter: Record<string, Topic[]>;
+  /** Hides add/edit/delete/reorder controls (here and in the nested
+   * TopicPanel) - used on the principal's read-only syllabus view. */
+  readOnly?: boolean;
 }
 
-export function ChapterPanel({ subjectId, chapters, topicsByChapter }: ChapterPanelProps) {
+export function ChapterPanel({
+  subjectId,
+  chapters,
+  topicsByChapter,
+  readOnly = false
+}: ChapterPanelProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(null);
@@ -85,49 +93,55 @@ export function ChapterPanel({ subjectId, chapters, topicsByChapter }: ChapterPa
                       {topicCount} {topicCount === 1 ? "topic" : "topics"}
                     </span>
                   </button>
-                  <div className="flex shrink-0 items-center gap-0.5">
-                    <button
-                      type="button"
-                      aria-label="Move chapter up"
-                      disabled={index === 0 || pendingReorderId === chapter.id}
-                      onClick={() => handleReorder(chapter.id, "up")}
-                      className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 disabled:opacity-30"
-                    >
-                      <ArrowUpIcon />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Move chapter down"
-                      disabled={index === sorted.length - 1 || pendingReorderId === chapter.id}
-                      onClick={() => handleReorder(chapter.id, "down")}
-                      className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 disabled:opacity-30"
-                    >
-                      <ArrowDownIcon />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Edit chapter"
-                      onClick={() => setEditingChapter(chapter)}
-                      className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100"
-                    >
-                      <EditIcon />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Delete chapter"
-                      onClick={() => setDeletingChapter(chapter)}
-                      className="rounded-lg p-1.5 text-danger-600 hover:bg-danger-50"
-                    >
-                      <TrashIcon />
-                    </button>
-                  </div>
+                  {!readOnly && (
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        aria-label="Move chapter up"
+                        disabled={index === 0 || pendingReorderId === chapter.id}
+                        onClick={() => handleReorder(chapter.id, "up")}
+                        className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 disabled:opacity-30"
+                      >
+                        <ArrowUpIcon />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Move chapter down"
+                        disabled={index === sorted.length - 1 || pendingReorderId === chapter.id}
+                        onClick={() => handleReorder(chapter.id, "down")}
+                        className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 disabled:opacity-30"
+                      >
+                        <ArrowDownIcon />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Edit chapter"
+                        onClick={() => setEditingChapter(chapter)}
+                        className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100"
+                      >
+                        <EditIcon />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Delete chapter"
+                        onClick={() => setDeletingChapter(chapter)}
+                        className="rounded-lg p-1.5 text-danger-600 hover:bg-danger-50"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {isExpanded && (
                   <div className="px-3 pb-3">
                     {chapter.description && (
                       <p className="mb-2 text-xs text-neutral-500">{chapter.description}</p>
                     )}
-                    <TopicPanel chapterId={chapter.id} topics={topicsByChapter[chapter.id] ?? []} />
+                    <TopicPanel
+                      chapterId={chapter.id}
+                      topics={topicsByChapter[chapter.id] ?? []}
+                      readOnly={readOnly}
+                    />
                   </div>
                 )}
               </li>
@@ -136,50 +150,54 @@ export function ChapterPanel({ subjectId, chapters, topicsByChapter }: ChapterPa
         </ul>
       )}
 
-      <Button variant="secondary" size="sm" className="self-start" onClick={() => setAddOpen(true)}>
-        + Add chapter
-      </Button>
+      {!readOnly && (
+        <>
+          <Button variant="secondary" size="sm" className="self-start" onClick={() => setAddOpen(true)}>
+            + Add chapter
+          </Button>
 
-      <NameDescriptionDialog
-        open={addOpen}
-        title="Add chapter"
-        nameLabel="Chapter name"
-        onClose={() => setAddOpen(false)}
-        onSubmit={async ({ name, description }) => {
-          const result = await createChapter(subjectId, { name, description });
-          if (result.error) return result.error;
-          toast("Chapter added", "success");
-          router.refresh();
-          return null;
-        }}
-      />
+          <NameDescriptionDialog
+            open={addOpen}
+            title="Add chapter"
+            nameLabel="Chapter name"
+            onClose={() => setAddOpen(false)}
+            onSubmit={async ({ name, description }) => {
+              const result = await createChapter(subjectId, { name, description });
+              if (result.error) return result.error;
+              toast("Chapter added", "success");
+              router.refresh();
+              return null;
+            }}
+          />
 
-      <NameDescriptionDialog
-        open={!!editingChapter}
-        title="Edit chapter"
-        nameLabel="Chapter name"
-        initialName={editingChapter?.name ?? ""}
-        initialDescription={editingChapter?.description ?? ""}
-        onClose={() => setEditingChapter(null)}
-        onSubmit={async ({ name, description }) => {
-          if (!editingChapter) return null;
-          const result = await updateChapter(editingChapter.id, { name, description });
-          if (result.error) return result.error;
-          toast("Chapter updated", "success");
-          router.refresh();
-          return null;
-        }}
-      />
+          <NameDescriptionDialog
+            open={!!editingChapter}
+            title="Edit chapter"
+            nameLabel="Chapter name"
+            initialName={editingChapter?.name ?? ""}
+            initialDescription={editingChapter?.description ?? ""}
+            onClose={() => setEditingChapter(null)}
+            onSubmit={async ({ name, description }) => {
+              if (!editingChapter) return null;
+              const result = await updateChapter(editingChapter.id, { name, description });
+              if (result.error) return result.error;
+              toast("Chapter updated", "success");
+              router.refresh();
+              return null;
+            }}
+          />
 
-      <ConfirmDialog
-        open={!!deletingChapter}
-        title="Delete chapter?"
-        description={`"${deletingChapter?.name ?? ""}" and all of its topics will be permanently removed.`}
-        confirmLabel="Delete"
-        destructive
-        onClose={() => setDeletingChapter(null)}
-        onConfirm={handleDelete}
-      />
+          <ConfirmDialog
+            open={!!deletingChapter}
+            title="Delete chapter?"
+            description={`"${deletingChapter?.name ?? ""}" and all of its topics will be permanently removed.`}
+            confirmLabel="Delete"
+            destructive
+            onClose={() => setDeletingChapter(null)}
+            onConfirm={handleDelete}
+          />
+        </>
+      )}
     </div>
   );
 }

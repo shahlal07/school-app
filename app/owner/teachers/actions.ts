@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/audit";
 import { usernameToSyntheticEmail, usernameValidationError } from "@/lib/auth/username";
+import { STAFF_ROLES, isStaffRole } from "@/lib/auth/roles";
+import type { StaffRole } from "@/types/database";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -21,7 +23,7 @@ export async function createTeacherAccount(
   fullName: string,
   username: string,
   password: string,
-  role: "owner" | "teacher" = "teacher"
+  role: StaffRole = "teacher"
 ): Promise<{ error: string | null }> {
   const owner = await requireRole("owner");
 
@@ -30,7 +32,7 @@ export async function createTeacherAccount(
     return { error: "Full name is required." };
   }
 
-  if (role !== "owner" && role !== "teacher") {
+  if (!isStaffRole(role)) {
     return { error: "Invalid role." };
   }
 
@@ -81,7 +83,7 @@ export async function createTeacherAccount(
 
   await logAudit({
     actorId: owner.user_id,
-    action: role === "owner" ? "owner_account_created" : "teacher_account_created",
+    action: `${role}_account_created`,
     entityType: "profiles",
     entityId: data.user.id,
     newData: { full_name: trimmedName, username: trimmedUsername, role }
@@ -198,7 +200,7 @@ export async function setTeacherActive(
     .from("profiles")
     .update({ is_active: isActive })
     .eq("user_id", userId)
-    .eq("role", "teacher");
+    .neq("role", "owner");
 
   if (error) {
     return { error: error.message };
@@ -206,7 +208,7 @@ export async function setTeacherActive(
 
   await logAudit({
     actorId: owner.user_id,
-    action: isActive ? "teacher_reactivated" : "teacher_deactivated",
+    action: isActive ? "staff_reactivated" : "staff_deactivated",
     entityType: "profiles",
     entityId: userId,
     newData: { is_active: isActive }

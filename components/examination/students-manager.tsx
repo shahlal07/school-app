@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Class, Section, Student } from "@/types/examination";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { StudentRow } from "@/components/examination/student-row";
 import { AddStudentDialog } from "@/components/examination/add-student-dialog";
@@ -16,9 +17,11 @@ export interface StudentsManagerProps {
   classes: Class[];
   sections: Section[];
   students: Student[];
+  /** Forwarded to StudentRow - see its doc comment. Omit to render plain (non-linked) rows. */
+  resultCardBasePath?: string;
 }
 
-function StudentsInner({ classes, sections, students }: StudentsManagerProps) {
+function StudentsInner({ classes, sections, students, resultCardBasePath }: StudentsManagerProps) {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -26,6 +29,7 @@ function StudentsInner({ classes, sections, students }: StudentsManagerProps) {
   const [selectedSectionId, setSelectedSectionId] = useState<string | undefined>(undefined);
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const classSections = useMemo(
     () => sections.filter((section) => section.class_id === selectedClassId),
@@ -37,14 +41,19 @@ function StudentsInner({ classes, sections, students }: StudentsManagerProps) {
       ? selectedSectionId
       : classSections[0]?.id;
 
-  const rosterStudents = useMemo(
-    () =>
-      students.filter(
-        (student) =>
-          student.class_id === selectedClassId && student.section_id === effectiveSectionId
-      ),
-    [students, selectedClassId, effectiveSectionId]
-  );
+  const rosterStudents = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return students.filter((student) => {
+      if (student.class_id !== selectedClassId || student.section_id !== effectiveSectionId) {
+        return false;
+      }
+      if (!query) return true;
+      return (
+        student.roll_no.toLowerCase().includes(query) ||
+        student.name.toLowerCase().includes(query)
+      );
+    });
+  }, [students, selectedClassId, effectiveSectionId, search]);
 
   if (classes.length === 0) {
     return <EmptyState title="No classes found" description="Classes need to be seeded first." />;
@@ -96,6 +105,16 @@ function StudentsInner({ classes, sections, students }: StudentsManagerProps) {
         </div>
       )}
 
+      <div className="max-w-xs">
+        <Input
+          label="Search students"
+          type="search"
+          placeholder="Search by roll number or name..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-neutral-500">
           {rosterStudents.length} {rosterStudents.length === 1 ? "student" : "students"}
@@ -111,16 +130,28 @@ function StudentsInner({ classes, sections, students }: StudentsManagerProps) {
       </div>
 
       {rosterStudents.length === 0 ? (
-        <EmptyState
-          title="No students yet"
-          description="Add students manually or import a CSV roster."
-          actionLabel="Add student"
-          onAction={() => setAddOpen(true)}
-        />
+        search.trim() ? (
+          <EmptyState
+            title="No matching students"
+            description={`No student's roll number or name matches "${search}".`}
+          />
+        ) : (
+          <EmptyState
+            title="No students yet"
+            description="Add students manually or import a CSV roster."
+            actionLabel="Add student"
+            onAction={() => setAddOpen(true)}
+          />
+        )
       ) : (
         <ul className="flex flex-col gap-2">
           {rosterStudents.map((student) => (
-            <StudentRow key={student.id} student={student} onChanged={() => router.refresh()} />
+            <StudentRow
+              key={student.id}
+              student={student}
+              onChanged={() => router.refresh()}
+              resultCardBasePath={resultCardBasePath}
+            />
           ))}
         </ul>
       )}

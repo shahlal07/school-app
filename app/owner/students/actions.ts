@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireRole } from "@/lib/auth/session";
+import { requireAnyRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import type { StudentImportRow } from "@/lib/utils/csv";
 
@@ -13,7 +13,7 @@ export async function addStudent(
   sectionId: string,
   input: { name: string; roll_no: string }
 ): Promise<{ error: string | null }> {
-  await requireRole("owner");
+  await requireAnyRole(["owner", "principal", "clerk"]);
   const supabase = createClient();
 
   const name = input.name.trim();
@@ -44,7 +44,7 @@ export async function setStudentActive(
   studentId: string,
   isActive: boolean
 ): Promise<{ error: string | null }> {
-  await requireRole("owner");
+  await requireAnyRole(["owner", "principal", "clerk"]);
   const supabase = createClient();
 
   const { error } = await supabase
@@ -61,7 +61,7 @@ export async function setStudentActive(
 }
 
 export async function deleteStudent(studentId: string): Promise<{ error: string | null }> {
-  await requireRole("owner");
+  await requireAnyRole(["owner", "principal", "clerk"]);
   const supabase = createClient();
 
   const { error } = await supabase.from("students").delete().eq("id", studentId);
@@ -84,7 +84,7 @@ export async function importStudents(
   sectionId: string,
   rows: StudentImportRow[]
 ): Promise<{ error: string | null; summary?: ImportSummary }> {
-  await requireRole("owner");
+  await requireAnyRole(["owner", "principal", "clerk"]);
   const supabase = createClient();
 
   const skipped: { roll_no: string; reason: string }[] = [];

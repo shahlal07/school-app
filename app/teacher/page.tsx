@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { Chapter, Class, Subject, Topic } from "@/types/examination";
+import type { Chapter, Class, ClassTeacher, Section, Subject, Topic } from "@/types/examination";
 import type { ScheduleItemRow } from "@/components/examination/schedule-list";
 import {
   TeacherScheduleCard,
@@ -15,30 +15,53 @@ export default async function TeacherHomePage() {
   const profile = await getCurrentProfile();
   const supabase = createClient();
 
-  const [scheduleRes, classesRes, subjectsRes, chaptersRes, topicsRes, alertsRes, messagesRes] =
-    await Promise.all([
-      supabase.from("schedule_items").select("*").order("scheduled_date", { ascending: true }),
-      supabase.from("classes").select("*"),
-      supabase.from("subjects").select("*"),
-      supabase.from("chapters").select("*"),
-      supabase.from("topics").select("*"),
-      supabase.from("alerts").select("id").eq("status", "open"),
-      profile
-        ? supabase
-            .from("messages")
-            .select("id")
-            .eq("recipient_id", profile.user_id)
-            .is("read_at", null)
-        : Promise.resolve({ data: [] })
-    ]);
+  const [
+    scheduleRes,
+    classesRes,
+    sectionsRes,
+    subjectsRes,
+    chaptersRes,
+    topicsRes,
+    alertsRes,
+    messagesRes,
+    classTeacherRes
+  ] = await Promise.all([
+    supabase.from("schedule_items").select("*").order("scheduled_date", { ascending: true }),
+    supabase.from("classes").select("*"),
+    supabase.from("sections").select("*"),
+    supabase.from("subjects").select("*"),
+    supabase.from("chapters").select("*"),
+    supabase.from("topics").select("*"),
+    supabase.from("alerts").select("id").eq("status", "open"),
+    profile
+      ? supabase
+          .from("messages")
+          .select("id")
+          .eq("recipient_id", profile.user_id)
+          .is("read_at", null)
+      : Promise.resolve({ data: [] }),
+    profile
+      ? supabase.from("class_teachers").select("*").eq("teacher_id", profile.user_id).maybeSingle()
+      : Promise.resolve({ data: null })
+  ]);
 
   const scheduleItems = (scheduleRes.data as ScheduleItemRow[] | null) ?? [];
   const classById = new Map(((classesRes.data as Class[] | null) ?? []).map((c) => [c.id, c]));
+  const sectionById = new Map(((sectionsRes.data as Section[] | null) ?? []).map((s) => [s.id, s]));
   const subjectById = new Map(((subjectsRes.data as Subject[] | null) ?? []).map((s) => [s.id, s]));
   const chapterById = new Map(((chaptersRes.data as Chapter[] | null) ?? []).map((c) => [c.id, c]));
   const topicById = new Map(((topicsRes.data as Topic[] | null) ?? []).map((t) => [t.id, t]));
   const openAlertCount = (alertsRes.data as { id: string }[] | null)?.length ?? 0;
   const unreadMessageCount = (messagesRes.data as { id: string }[] | null)?.length ?? 0;
+
+  const classTeacherRow = classTeacherRes.data as ClassTeacher | null;
+  const homeroomLabel = classTeacherRow
+    ? (() => {
+        const klass = classById.get(classTeacherRow.class_id);
+        const section = sectionById.get(classTeacherRow.section_id);
+        return klass && section ? `${klass.name}-${section.name}` : null;
+      })()
+    : null;
 
   const items: TeacherScheduleItem[] = scheduleItems.map((item) => ({
     ...item,
@@ -64,6 +87,11 @@ export default async function TeacherHomePage() {
     <main className="p-4 sm:p-6">
       <h1 className="text-xl font-semibold text-neutral-900">Hi, {firstName}</h1>
       <p className="mt-1 text-sm text-neutral-500">Here&apos;s what needs your attention today.</p>
+      {homeroomLabel && (
+        <Badge variant="info" className="mt-2">
+          Class Teacher of {homeroomLabel}
+        </Badge>
+      )}
 
       <div className="mt-4 grid grid-cols-3 gap-2">
         <Link

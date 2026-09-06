@@ -19,6 +19,10 @@ interface SubjectCardProps {
   topicsByChapter: Record<string, Topic[]>;
   expanded: boolean;
   onToggleExpand: () => void;
+  /** Hides rename/activate/delete controls (here and in the nested
+   * ChapterPanel/TopicPanel) - used on the principal's read-only syllabus
+   * view, since principal's RLS grants read but not write on academics. */
+  readOnly?: boolean;
 }
 
 export function SubjectCard({
@@ -26,7 +30,8 @@ export function SubjectCard({
   chapters,
   topicsByChapter,
   expanded,
-  onToggleExpand
+  onToggleExpand,
+  readOnly = false
 }: SubjectCardProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -78,22 +83,24 @@ export function SubjectCard({
             {chapterCount} {chapterCount === 1 ? "chapter" : "chapters"}
           </span>
         </button>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => setRenaming(true)}>
-            Rename
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            loading={togglingActive}
-            onClick={handleToggleActive}
-          >
-            {subject.is_active ? "Deactivate" : "Activate"}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setDeleting(true)}>
-            <span className="text-danger-600">Delete</span>
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="flex shrink-0 items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setRenaming(true)}>
+              Rename
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              loading={togglingActive}
+              onClick={handleToggleActive}
+            >
+              {subject.is_active ? "Deactivate" : "Activate"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setDeleting(true)}>
+              <span className="text-danger-600">Delete</span>
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <button
@@ -101,41 +108,46 @@ export function SubjectCard({
           onClick={onToggleExpand}
           className="mb-2 text-xs font-medium text-primary-600 hover:text-primary-700"
         >
-          {expanded ? "Hide chapters" : "Manage chapters"}
+          {expanded ? "Hide chapters" : readOnly ? "View chapters" : "Manage chapters"}
         </button>
         {expanded && (
           <ChapterPanel
             subjectId={subject.id}
             chapters={chapters}
             topicsByChapter={topicsByChapter}
+            readOnly={readOnly}
           />
         )}
       </CardContent>
 
-      <RenameDialog
-        open={renaming}
-        title="Rename subject"
-        label="Subject name"
-        initialValue={subject.name}
-        onClose={() => setRenaming(false)}
-        onSubmit={async (name) => {
-          const result = await updateSubject(subject.id, { name });
-          if (result.error) return result.error;
-          toast("Subject renamed", "success");
-          router.refresh();
-          return null;
-        }}
-      />
+      {!readOnly && (
+        <>
+          <RenameDialog
+            open={renaming}
+            title="Rename subject"
+            label="Subject name"
+            initialValue={subject.name}
+            onClose={() => setRenaming(false)}
+            onSubmit={async (name) => {
+              const result = await updateSubject(subject.id, { name });
+              if (result.error) return result.error;
+              toast("Subject renamed", "success");
+              router.refresh();
+              return null;
+            }}
+          />
 
-      <ConfirmDialog
-        open={deleting}
-        title="Delete subject?"
-        description={`"${subject.name}" and all of its chapters and topics will be permanently removed. This cannot be undone.`}
-        confirmLabel="Delete"
-        destructive
-        onClose={() => setDeleting(false)}
-        onConfirm={handleDelete}
-      />
+          <ConfirmDialog
+            open={deleting}
+            title="Delete subject?"
+            description={`"${subject.name}" and all of its chapters and topics will be permanently removed. This cannot be undone.`}
+            confirmLabel="Delete"
+            destructive
+            onClose={() => setDeleting(false)}
+            onConfirm={handleDelete}
+          />
+        </>
+      )}
     </Card>
   );
 }

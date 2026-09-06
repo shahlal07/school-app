@@ -11,8 +11,9 @@ import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { ToastProvider, useToast } from "@/components/ui/toast";
-import type { Profile } from "@/types/database";
+import type { Profile, StaffRole } from "@/types/database";
 import type { Class, Subject } from "@/types/examination";
+import { STAFF_ROLES, ROLE_LABELS } from "@/lib/auth/roles";
 
 import { createTeacherAccount, resetTeacherPassword, setTeacherActive } from "./actions";
 import { AssignSubjectsDialog, type TeacherAssignmentRow } from "./assign-subjects-dialog";
@@ -33,7 +34,7 @@ function CreateTeacherDialog({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<"teacher" | "owner">("teacher");
+  const [role, setRole] = useState<StaffRole>("teacher");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,11 +107,14 @@ function CreateTeacherDialog({
           <select
             id="create-role"
             value={role}
-            onChange={(event) => setRole(event.target.value as "teacher" | "owner")}
+            onChange={(event) => setRole(event.target.value as StaffRole)}
             className={selectClasses}
           >
-            <option value="teacher">Teacher</option>
-            <option value="owner">Owner (supreme authority)</option>
+            {STAFF_ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABELS[r]}
+              </option>
+            ))}
           </select>
         </div>
         <Input
@@ -265,7 +269,7 @@ function TeachersInner({ teachers, classes, subjectsByClass, assignments }: Teac
   return (
     <div className="p-4 sm:p-6">
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-neutral-900">Teachers</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Staff</h1>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
           Create account
         </Button>
@@ -273,8 +277,8 @@ function TeachersInner({ teachers, classes, subjectsByClass, assignments }: Teac
 
       {teachers.length === 0 ? (
         <EmptyState
-          title="No teachers yet"
-          description="Create your first teacher account to get started."
+          title="No staff yet"
+          description="Create your first staff account to get started."
           actionLabel="Create account"
           onAction={() => setCreateOpen(true)}
         />
@@ -295,16 +299,21 @@ function TeachersInner({ teachers, classes, subjectsByClass, assignments }: Teac
                       <Badge variant={teacher.is_active ? "success" : "neutral"}>
                         {teacher.is_active ? "Active" : "Inactive"}
                       </Badge>
-                      <Badge variant={count > 0 ? "info" : "warning"}>
-                        {count} {count === 1 ? "subject" : "subjects"}
-                      </Badge>
+                      <Badge variant="neutral">{ROLE_LABELS[teacher.role]}</Badge>
+                      {teacher.role === "teacher" && (
+                        <Badge variant={count > 0 ? "info" : "warning"}>
+                          {count} {count === 1 ? "subject" : "subjects"}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => setAssigningTeacher(teacher)}>
-                    Assign subjects
-                  </Button>
+                  {teacher.role === "teacher" && (
+                    <Button variant="secondary" size="sm" onClick={() => setAssigningTeacher(teacher)}>
+                      Assign subjects
+                    </Button>
+                  )}
                   <Button
                     variant={teacher.is_active ? "destructive" : "secondary"}
                     size="sm"

@@ -2,22 +2,24 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireRole } from "@/lib/auth/session";
+import { requireAnyRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
 
 type ActionResult = { error: string | null };
 
 const PAPERS_PATH = "/owner/papers";
+const COORDINATOR_PAPERS_PATH = "/coordinator/papers";
 
 /**
- * Approves a submitted paper. Only callable by an owner session - enforced
- * both here (defense in depth) and by a Postgres trigger that rejects any
- * attempt to move `exam_papers.status` into an owner-only state, or to touch
- * `reviewed_at`/`reviewed_by`/`review_notes`, from a non-owner session.
+ * Approves a submitted paper. Callable by owner or academic_coordinator -
+ * matches can_manage_academics() and the exam_papers review-field trigger
+ * (enforce_exam_paper_review_fields(), widened in migration
+ * 20260906124632_phase_a_extend_paper_review_trigger_to_coordinator.sql to
+ * check can_manage_academics() instead of a hardcoded is_owner()).
  */
 export async function approvePaper(paperId: string, reviewNotes: string): Promise<ActionResult> {
-  const profile = await requireRole("owner");
+  const profile = await requireAnyRole(["owner", "academic_coordinator"]);
   const supabase = createClient();
 
   const { error } = await supabase
@@ -43,6 +45,7 @@ export async function approvePaper(paperId: string, reviewNotes: string): Promis
   });
 
   revalidatePath(PAPERS_PATH);
+  revalidatePath(COORDINATOR_PAPERS_PATH);
   return { error: null };
 }
 
@@ -51,7 +54,7 @@ export async function approvePaper(paperId: string, reviewNotes: string): Promis
  * revise and resubmit it - never back to `submitted`.
  */
 export async function rejectPaper(paperId: string, reviewNotes: string): Promise<ActionResult> {
-  const profile = await requireRole("owner");
+  const profile = await requireAnyRole(["owner", "academic_coordinator"]);
   const supabase = createClient();
 
   const trimmedNotes = reviewNotes.trim();
@@ -82,5 +85,6 @@ export async function rejectPaper(paperId: string, reviewNotes: string): Promise
   });
 
   revalidatePath(PAPERS_PATH);
+  revalidatePath(COORDINATOR_PAPERS_PATH);
   return { error: null };
 }

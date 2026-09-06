@@ -9,7 +9,7 @@ export default async function TeachersPage() {
   const supabase = createClient();
 
   const [teachersRes, classesRes, subjectsRes, assignmentsRes] = await Promise.all([
-    supabase.from("profiles").select("*").eq("role", "teacher").order("full_name", { ascending: true }),
+    supabase.from("profiles").select("*").order("full_name", { ascending: true }),
     supabase.from("classes").select("*"),
     supabase.from("subjects").select("*").order("name", { ascending: true }),
     supabase.from("teacher_subjects").select("id, teacher_id, subject_id, class_id")

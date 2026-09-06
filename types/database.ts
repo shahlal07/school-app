@@ -1,12 +1,16 @@
+export type StaffRole = "owner" | "principal" | "academic_coordinator" | "clerk" | "teacher";
+
 export interface Profile {
   id: string;
   user_id: string;
   full_name: string;
-  role: "owner" | "teacher";
+  role: StaffRole;
   phone: string | null;
   is_active: boolean;
   /** Login identifier for accounts without a real email (most teachers). Null for email-based accounts. */
   username: string | null;
+  designation: string | null;
+  joining_date: string | null;
   created_at: string;
   updated_at: string;
 }

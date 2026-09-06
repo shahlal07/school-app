@@ -65,6 +65,22 @@ function ExamResultsRosterInner({
     [students]
   );
 
+  const [search, setSearch] = useState("");
+
+  // Filters only the rendered list - `rows` (the state tracking every
+  // student's entered marks) stays keyed off the full `sortedStudents` list
+  // regardless of the search term, so a hidden student's marks are still
+  // included when "Save all" runs.
+  const visibleStudents = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return sortedStudents;
+    return sortedStudents.filter(
+      (student) =>
+        student.roll_no.toLowerCase().includes(query) ||
+        student.name.toLowerCase().includes(query)
+    );
+  }, [sortedStudents, search]);
+
   const updateRow = (studentId: string, patch: Partial<RowState>) => {
     setRows((prev) => ({
       ...prev,
@@ -122,8 +138,21 @@ function ExamResultsRosterInner({
         />
       </div>
 
+      <div className="max-w-xs">
+        <Input
+          label="Search students"
+          type="search"
+          placeholder="Search by roll number or name..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {visibleStudents.length === 0 ? (
+        <p className="text-sm text-neutral-500">No students match &quot;{search}&quot;.</p>
+      ) : (
       <ul className="flex flex-col gap-2">
-        {sortedStudents.map((student) => {
+        {visibleStudents.map((student) => {
           const row = rows[student.id];
           return (
             <li
@@ -175,6 +204,7 @@ function ExamResultsRosterInner({
           );
         })}
       </ul>
+      )}
 
       <Button type="button" variant="primary" loading={saving} onClick={handleSaveAll}>
         Save all

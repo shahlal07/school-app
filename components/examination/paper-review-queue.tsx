@@ -91,13 +91,18 @@ export interface PaperReviewQueueProps {
   inProgress: PaperQueueRow[];
   completed: PaperQueueRow[];
   notStarted: PaperQueueRow[];
+  /** Hides the Review button/dialog on the "needs review" tab - used on the
+   * principal's read-only papers view, since approve/reject is owner-only
+   * (enforced by a Postgres trigger, not just RLS). */
+  readOnly?: boolean;
 }
 
 function PaperReviewQueueInner({
   needsReview,
   inProgress,
   completed,
-  notStarted
+  notStarted,
+  readOnly = false
 }: PaperReviewQueueProps) {
   const [reviewingRow, setReviewingRow] = useState<PaperQueueRow | null>(null);
 
@@ -125,7 +130,7 @@ function PaperReviewQueueInner({
                 rows={needsReview}
                 emptyTitle="Nothing to review"
                 emptyDescription="No submitted papers are waiting on your review right now."
-                onReview={setReviewingRow}
+                onReview={readOnly ? undefined : setReviewingRow}
               />
             )
           },
@@ -165,7 +170,9 @@ function PaperReviewQueueInner({
         ]}
       />
 
-      <PaperReviewDialog row={reviewingRow} onClose={() => setReviewingRow(null)} />
+      {!readOnly && (
+        <PaperReviewDialog row={reviewingRow} onClose={() => setReviewingRow(null)} />
+      )}
     </>
   );
 }

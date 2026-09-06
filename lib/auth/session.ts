@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import type { Profile } from "@/types/database";
+import { ROLE_HOME_PATH } from "@/lib/auth/roles";
+import type { Profile, StaffRole } from "@/types/database";
 
 export async function getCurrentProfile(): Promise<Profile | null> {
   const supabase = createClient();
@@ -29,15 +30,24 @@ export async function getCurrentProfile(): Promise<Profile | null> {
  * security boundary is Postgres RLS, which enforces the same scoping even
  * if this guard were bypassed.
  */
-export async function requireRole(role: "owner" | "teacher"): Promise<Profile> {
+export async function requireRole(role: StaffRole): Promise<Profile> {
+  return requireAnyRole([role]);
+}
+
+/**
+ * Same guard as requireRole, but accepts any of several roles - used by the
+ * new Principal/Academic Coordinator/Clerk segments where a page is shared
+ * across more than one role (e.g. Principal + Owner both reach /owner/students).
+ */
+export async function requireAnyRole(roles: StaffRole[]): Promise<Profile> {
   const profile = await getCurrentProfile();
 
   if (!profile || !profile.is_active) {
     redirect("/login");
   }
 
-  if (profile.role !== role) {
-    redirect(profile.role === "owner" ? "/owner" : "/teacher");
+  if (!roles.includes(profile.role)) {
+    redirect(ROLE_HOME_PATH[profile.role]);
   }
 
   return profile;

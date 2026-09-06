@@ -26,7 +26,12 @@ export default async function StudentsPage() {
       </p>
 
       <div className="mt-5">
-        <StudentsManager classes={classes} sections={sections} students={students} />
+        <StudentsManager
+          classes={classes}
+          sections={sections}
+          students={students}
+          resultCardBasePath="/owner/students"
+        />
       </div>
     </main>
   );

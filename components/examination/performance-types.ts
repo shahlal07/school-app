@@ -63,6 +63,29 @@ export function passRateVariant(passRate: number): NonNullable<BadgeProps["varia
   return "danger";
 }
 
+/**
+ * Average marks percentage across graded, non-absent rows: sum(marks_obtained)
+ * / sum(total_marks) * 100, rounded to one decimal place (same rounding as
+ * makePassRateStat). A row only counts toward the average once it's actually
+ * graded (`is_pass` non-null, mirroring the "graded" convention used
+ * everywhere else in this file) and the student wasn't absent for it - an
+ * absent row has `marks_obtained` cleared to null by the DB trigger, so it
+ * can never contribute a real score. Returns null (rather than 0) when there
+ * is nothing to average, since 0% would misleadingly read as "scored zero".
+ */
+export function averageMarksPercent(rows: GradedResultRow[]): number | null {
+  let obtainedSum = 0;
+  let totalSum = 0;
+
+  for (const row of rows) {
+    if (row.is_pass === null || row.is_absent || row.marks_obtained === null) continue;
+    obtainedSum += row.marks_obtained;
+    totalSum += row.total_marks;
+  }
+
+  return totalSum > 0 ? Math.round((obtainedSum / totalSum) * 1000) / 10 : null;
+}
+
 /** Minimum number of graded results a topic needs before it can be flagged as "weak". */
 export const MIN_TOPIC_SAMPLE_SIZE = 3;
 

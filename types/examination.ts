@@ -38,6 +38,14 @@ export interface TeacherSubject {
   created_at: string;
 }
 
+export interface ClassTeacher {
+  id: string;
+  class_id: string;
+  section_id: string;
+  teacher_id: string;
+  created_at: string;
+}
+
 export interface Chapter {
   id: string;
   subject_id: string;

@@ -12,13 +12,19 @@ export interface SyllabusManagerProps {
   subjectsByClass: Record<string, Subject[]>;
   chaptersBySubject: Record<string, Chapter[]>;
   topicsByChapter: Record<string, Topic[]>;
+  /** Hides every add/rename/activate/delete/reorder control throughout the
+   * whole syllabus tree - used on the principal's read-only syllabus view,
+   * since principal has can_view_school_wide() (read) but not
+   * can_manage_academics() (write) at the RLS layer. */
+  readOnly?: boolean;
 }
 
 function SyllabusManagerInner({
   classes,
   subjectsByClass,
   chaptersBySubject,
-  topicsByChapter
+  topicsByChapter,
+  readOnly = false
 }: SyllabusManagerProps) {
   const [selectedClassId, setSelectedClassId] = useState<string | undefined>(classes[0]?.id);
   const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null);
@@ -85,6 +91,7 @@ function SyllabusManagerInner({
                 onToggleExpand={() =>
                   setExpandedSubjectId((current) => (current === subject.id ? null : subject.id))
                 }
+                readOnly={readOnly}
               />
             </li>
           ))}

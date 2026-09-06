@@ -14,9 +14,12 @@ import { createTopic, updateTopic, deleteTopic, reorderTopic } from "@/app/owner
 interface TopicPanelProps {
   chapterId: string;
   topics: Topic[];
+  /** Hides add/edit/delete/reorder controls - used on the principal's
+   * read-only syllabus view, since principal has view-only academic RLS. */
+  readOnly?: boolean;
 }
 
-export function TopicPanel({ chapterId, topics }: TopicPanelProps) {
+export function TopicPanel({ chapterId, topics, readOnly = false }: TopicPanelProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
@@ -68,91 +71,97 @@ export function TopicPanel({ chapterId, topics }: TopicPanelProps) {
                   </p>
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-0.5">
-                <button
-                  type="button"
-                  aria-label="Move topic up"
-                  disabled={index === 0 || pendingReorderId === topic.id}
-                  onClick={() => handleReorder(topic.id, "up")}
-                  className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-200 disabled:opacity-30"
-                >
-                  <ArrowUpIcon />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Move topic down"
-                  disabled={index === sorted.length - 1 || pendingReorderId === topic.id}
-                  onClick={() => handleReorder(topic.id, "down")}
-                  className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-200 disabled:opacity-30"
-                >
-                  <ArrowDownIcon />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Edit topic"
-                  onClick={() => setEditingTopic(topic)}
-                  className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-200"
-                >
-                  <EditIcon />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Delete topic"
-                  onClick={() => setDeletingTopic(topic)}
-                  className="rounded-lg p-1.5 text-danger-600 hover:bg-danger-50"
-                >
-                  <TrashIcon />
-                </button>
-              </div>
+              {!readOnly && (
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <button
+                    type="button"
+                    aria-label="Move topic up"
+                    disabled={index === 0 || pendingReorderId === topic.id}
+                    onClick={() => handleReorder(topic.id, "up")}
+                    className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-200 disabled:opacity-30"
+                  >
+                    <ArrowUpIcon />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Move topic down"
+                    disabled={index === sorted.length - 1 || pendingReorderId === topic.id}
+                    onClick={() => handleReorder(topic.id, "down")}
+                    className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-200 disabled:opacity-30"
+                  >
+                    <ArrowDownIcon />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Edit topic"
+                    onClick={() => setEditingTopic(topic)}
+                    className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-200"
+                  >
+                    <EditIcon />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Delete topic"
+                    onClick={() => setDeletingTopic(topic)}
+                    className="rounded-lg p-1.5 text-danger-600 hover:bg-danger-50"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
       )}
 
-      <Button variant="ghost" size="sm" className="self-start" onClick={() => setAddOpen(true)}>
-        + Add topic
-      </Button>
+      {!readOnly && (
+        <>
+          <Button variant="ghost" size="sm" className="self-start" onClick={() => setAddOpen(true)}>
+            + Add topic
+          </Button>
 
-      <NameDescriptionDialog
-        open={addOpen}
-        title="Add topic"
-        nameLabel="Topic name"
-        onClose={() => setAddOpen(false)}
-        onSubmit={async ({ name, description }) => {
-          const result = await createTopic(chapterId, { name, description });
-          if (result.error) return result.error;
-          toast("Topic added", "success");
-          router.refresh();
-          return null;
-        }}
-      />
+          <NameDescriptionDialog
+            open={addOpen}
+            title="Add topic"
+            nameLabel="Topic name"
+            onClose={() => setAddOpen(false)}
+            onSubmit={async ({ name, description }) => {
+              const result = await createTopic(chapterId, { name, description });
+              if (result.error) return result.error;
+              toast("Topic added", "success");
+              router.refresh();
+              return null;
+            }}
+          />
 
-      <NameDescriptionDialog
-        open={!!editingTopic}
-        title="Edit topic"
-        nameLabel="Topic name"
-        initialName={editingTopic?.name ?? ""}
-        initialDescription={editingTopic?.description ?? ""}
-        onClose={() => setEditingTopic(null)}
-        onSubmit={async ({ name, description }) => {
-          if (!editingTopic) return null;
-          const result = await updateTopic(editingTopic.id, { name, description });
-          if (result.error) return result.error;
-          toast("Topic updated", "success");
-          router.refresh();
-          return null;
-        }}
-      />
+          <NameDescriptionDialog
+            open={!!editingTopic}
+            title="Edit topic"
+            nameLabel="Topic name"
+            initialName={editingTopic?.name ?? ""}
+            initialDescription={editingTopic?.description ?? ""}
+            onClose={() => setEditingTopic(null)}
+            onSubmit={async ({ name, description }) => {
+              if (!editingTopic) return null;
+              const result = await updateTopic(editingTopic.id, { name, description });
+              if (result.error) return result.error;
+              toast("Topic updated", "success");
+              router.refresh();
+              return null;
+            }}
+          />
 
-      <ConfirmDialog
-        open={!!deletingTopic}
-        title="Delete topic?"
-        description={`"${deletingTopic?.name ?? ""}" will be permanently removed.`}
-        confirmLabel="Delete"
-        destructive
-        onClose={() => setDeletingTopic(null)}
-        onConfirm={handleDelete}
-      />
+          <ConfirmDialog
+            open={!!deletingTopic}
+            title="Delete topic?"
+            description={`"${deletingTopic?.name ?? ""}" will be permanently removed.`}
+            confirmLabel="Delete"
+            destructive
+            onClose={() => setDeletingTopic(null)}
+            onConfirm={handleDelete}
+          />
+        </>
+      )}
     </div>
   );
 }

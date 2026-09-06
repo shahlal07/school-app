@@ -21,6 +21,7 @@ const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   { label: "Papers", href: "/owner/papers" },
   { label: "Teachers", href: "/owner/teachers" },
   { label: "Students", href: "/owner/students" },
+  { label: "Class Teachers", href: "/owner/classes" },
   { label: "Results", href: "/owner/results" },
   { label: "Performance", href: "/owner/performance" },
   { label: "Alerts", href: "/owner/alerts" },

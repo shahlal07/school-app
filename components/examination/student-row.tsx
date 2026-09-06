@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import type { Student } from "@/types/examination";
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +13,17 @@ import { deleteStudent, setStudentActive } from "@/app/owner/students/actions";
 interface StudentRowProps {
   student: Student;
   onChanged: () => void;
+  /**
+   * Base path for the per-student result-card link (e.g. "/owner/students").
+   * Result cards show academic data (test_results/pass-rate/averages) which
+   * clerk has no visibility into at all, and which currently only exists
+   * under the owner-gated route - so this is opt-in per embedding page
+   * rather than hardcoded, and omitting it renders plain (non-linked) text.
+   */
+  resultCardBasePath?: string;
 }
 
-export function StudentRow({ student, onChanged }: StudentRowProps) {
+export function StudentRow({ student, onChanged, resultCardBasePath }: StudentRowProps) {
   const { toast } = useToast();
   const [deleting, setDeleting] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -43,10 +52,19 @@ export function StudentRow({ student, onChanged }: StudentRowProps) {
 
   return (
     <li className="flex items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2.5">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-neutral-900">{student.name}</p>
-        <p className="text-xs text-neutral-500">Roll No. {student.roll_no}</p>
-      </div>
+      {resultCardBasePath ? (
+        <Link href={`${resultCardBasePath}/${student.id}`} className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-neutral-900 hover:text-primary-600">
+            {student.name}
+          </p>
+          <p className="text-xs text-neutral-500">Roll No. {student.roll_no}</p>
+        </Link>
+      ) : (
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-neutral-900">{student.name}</p>
+          <p className="text-xs text-neutral-500">Roll No. {student.roll_no}</p>
+        </div>
+      )}
       <div className="flex shrink-0 items-center gap-2">
         {!student.is_active && <Badge variant="neutral">Inactive</Badge>}
         <Button variant="ghost" size="sm" loading={toggling} onClick={handleToggle}>
