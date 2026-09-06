@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAnyRole } from "@/lib/auth/session";
+import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
 
 type Result={error:string|null};
 
 export async function createIntervention(formData:FormData):Promise<Result>{
-  const profile=await requireAnyRole(["owner","academic_coordinator"]); const supabase=createClient();
+  const profile=await requireRole("academic_coordinator"); const supabase=createClient();
   const studentId=String(formData.get("studentId")??"").trim();
   const subjectId=String(formData.get("subjectId")??"").trim()||null;
   const assignedTo=String(formData.get("assignedTo")??"").trim()||null;
@@ -25,7 +25,7 @@ export async function createIntervention(formData:FormData):Promise<Result>{
 }
 
 export async function updateIntervention(id:string,status:string,outcome:string):Promise<Result>{
-  const profile=await requireAnyRole(["owner","academic_coordinator"]); const supabase=createClient();
+  const profile=await requireRole("academic_coordinator"); const supabase=createClient();
   if(!["open","in_progress","completed","cancelled"].includes(status))return{error:"Invalid intervention status."};
   const {data:old}=await supabase.from("academic_interventions").select("status,outcome").eq("id",id).maybeSingle();
   const {error}=await supabase.from("academic_interventions").update({status,outcome:outcome.trim()||null,updated_at:new Date().toISOString()}).eq("id",id);
