@@ -7,6 +7,8 @@ import { usePathname } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { BottomNav, type BottomNavIcon } from "@/components/shared/bottom-nav";
+import { LanguageToggle } from "@/components/shared/language-toggle";
+import { useTranslation } from "@/lib/i18n/locale-provider";
 import { signOut } from "@/lib/auth-actions";
 
 export interface SidebarNavItem {
@@ -39,9 +41,10 @@ interface RoleShellProps {
 /**
  * Generic version of OwnerShell, parameterized by role so Principal/Academic
  * Coordinator/Clerk each get the same sidebar+bottom-nav chrome without a
- * copy-pasted shell per role. OwnerShell itself is left untouched (not
- * rewritten to use this) so the one already-tested owner route carries zero
- * regression risk from this refactor.
+ * copy-pasted shell per role. sidebarItems/bottomNavItems labels are built
+ * by the calling layout.tsx (a server component) via lib/i18n/get-translator's
+ * getT(), so this component itself only needs to translate its own fixed
+ * chrome text (sign out) and render the app-wide language toggle.
  */
 export function RoleShell({
   children,
@@ -52,10 +55,18 @@ export function RoleShell({
   bottomNavItems
 }: RoleShellProps) {
   const pathname = usePathname();
+  const { t, dir } = useTranslation();
+
+  const asideSide = dir === "rtl" ? "right-0" : "left-0";
+  const contentPadding = dir === "rtl" ? "md:pr-60" : "md:pl-60";
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-neutral-200 bg-white md:flex">
+      <aside
+        className={`fixed inset-y-0 ${asideSide} hidden w-60 flex-col border-neutral-200 bg-white md:flex ${
+          dir === "rtl" ? "border-l" : "border-r"
+        }`}
+      >
         <div className="flex h-16 items-center border-b border-neutral-200 px-5">
           <span className="text-lg font-bold text-primary-600">School OS</span>
           <span className="ml-2 truncate text-xs font-medium text-neutral-400">{brandLabel}</span>
@@ -84,17 +95,20 @@ export function RoleShell({
         </nav>
       </aside>
 
-      <div className="flex min-h-screen flex-col md:pl-60">
+      <div className={`flex min-h-screen flex-col ${contentPadding}`}>
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-neutral-200 bg-white px-4 md:px-6">
           <div className="flex items-center gap-3">
             <Avatar name={userName} size="sm" />
             <span className="text-sm font-medium text-neutral-900">{userName}</span>
           </div>
-          <form action={signOut}>
-            <Button type="submit" variant="ghost" size="sm">
-              Sign out
-            </Button>
-          </form>
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <form action={signOut}>
+              <Button type="submit" variant="ghost" size="sm">
+                {t("common.signOut")}
+              </Button>
+            </form>
+          </div>
         </header>
 
         <main className="flex-1 px-4 py-6 pb-24 md:px-6 md:pb-6">{children}</main>

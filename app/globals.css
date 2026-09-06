@@ -30,3 +30,27 @@ body {
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* ---- Language / RTL support ---------------------------------------- */
+
+/*
+ * Khat-e-Nastaleeq for the whole document whenever Urdu is active - applied
+ * once here rather than on every component, so nothing is missed. English
+ * digits/identifiers embedded in Urdu text (marks, dates, "Set #004") fall
+ * back through the stack cleanly since Noto Nastaliq Urdu's Latin coverage
+ * is minimal; browsers already do this substitution correctly per-glyph.
+ */
+[dir="rtl"] {
+  font-family: var(--font-urdu), "Noto Nastaliq Urdu", var(--font-inter), sans-serif;
+  line-height: 2.1; /* Nastaliq's vertical stacking needs materially more room than Latin text */
+}
+
+/*
+ * A raw data value (a name, "Grade 10-A", "Set #004", a percentage) must
+ * never visually reverse just because it sits inside an RTL container.
+ * Wrap such values in <bdi> (see components/shared/bdi.tsx) rather than
+ * reaching for text-align/direction overrides per element.
+ */
+bdi {
+  unicode-bidi: isolate;
+}

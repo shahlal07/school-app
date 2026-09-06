@@ -1,5 +1,6 @@
 import { requireAnyRole } from "@/lib/auth/session";
 import { RoleShell } from "@/components/shared/role-shell";
+import { getT } from "@/lib/i18n/get-translator";
 
 /**
  * Academic Coordinator segment guard. Allows "owner" in addition to
@@ -12,6 +13,7 @@ export default async function CoordinatorLayout({
   children: React.ReactNode;
 }) {
   const profile = await requireAnyRole(["owner", "academic_coordinator"]);
+  const t = await getT();
 
   return (
     <RoleShell
@@ -19,23 +21,23 @@ export default async function CoordinatorLayout({
       brandLabel="Academic Coordinator"
       homeHref="/coordinator"
       sidebarItems={[
-        { label: "Dashboard", href: "/coordinator" },
-        { label: "Attendance", href: "/coordinator/attendance" },
-        { label: "Schedule", href: "/coordinator/schedule" },
-        { label: "Syllabus", href: "/coordinator/syllabus" },
-        { label: "Calendar", href: "/coordinator/calendar" },
-        { label: "Exam Sets", href: "/coordinator/exam-sets" },
-        { label: "Papers", href: "/coordinator/papers" },
-        { label: "Performance", href: "/coordinator/performance" },
-        { label: "Alerts", href: "/coordinator/alerts" },
-        { label: "Messages", href: "/coordinator/messages" }
+        { label: t("nav.dashboard"), href: "/coordinator" },
+        { label: t("nav.attendance"), href: "/coordinator/attendance" },
+        { label: t("nav.schedule"), href: "/coordinator/schedule" },
+        { label: t("nav.syllabus"), href: "/coordinator/syllabus" },
+        { label: t("nav.calendar"), href: "/coordinator/calendar" },
+        { label: t("nav.examSets"), href: "/coordinator/exam-sets" },
+        { label: t("nav.papers"), href: "/coordinator/papers" },
+        { label: t("nav.performance"), href: "/coordinator/performance" },
+        { label: t("nav.alerts"), href: "/coordinator/alerts" },
+        { label: t("nav.messages"), href: "/coordinator/messages" }
       ]}
       bottomNavItems={[
-        { label: "Home", href: "/coordinator", icon: "home" },
-        { label: "Attendance", href: "/coordinator/attendance", icon: "user" },
-        { label: "Schedule", href: "/coordinator/schedule", icon: "book-open" },
-        { label: "Alerts", href: "/coordinator/alerts", icon: "bell" },
-        { label: "Messages", href: "/coordinator/messages", icon: "message-circle" }
+        { label: t("nav.home"), href: "/coordinator", icon: "home" },
+        { label: t("nav.attendance"), href: "/coordinator/attendance", icon: "user" },
+        { label: t("nav.schedule"), href: "/coordinator/schedule", icon: "book-open" },
+        { label: t("nav.alerts"), href: "/coordinator/alerts", icon: "bell" },
+        { label: t("nav.messages"), href: "/coordinator/messages", icon: "message-circle" }
       ]}
     >
       {children}

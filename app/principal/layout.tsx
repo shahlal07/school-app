@@ -1,5 +1,6 @@
 import { requireAnyRole } from "@/lib/auth/session";
 import { RoleShell } from "@/components/shared/role-shell";
+import { getT } from "@/lib/i18n/get-translator";
 
 export default async function PrincipalLayout({
   children
@@ -7,6 +8,7 @@ export default async function PrincipalLayout({
   children: React.ReactNode;
 }) {
   const profile = await requireAnyRole(["owner", "principal"]);
+  const t = await getT();
 
   return (
     <RoleShell
@@ -14,25 +16,25 @@ export default async function PrincipalLayout({
       brandLabel="Principal"
       homeHref="/principal"
       sidebarItems={[
-        { label: "Dashboard", href: "/principal" },
-        { label: "Attendance", href: "/principal/attendance" },
-        { label: "Syllabus", href: "/principal/syllabus" },
-        { label: "Schedule", href: "/principal/schedule" },
-        { label: "Papers", href: "/principal/papers" },
-        { label: "Students", href: "/principal/students" },
-        { label: "Class Teachers", href: "/principal/classes" },
-        { label: "Results", href: "/principal/results" },
-        { label: "Performance", href: "/principal/performance" },
-        { label: "Alerts", href: "/principal/alerts" },
-        { label: "Messages", href: "/principal/messages" },
-        { label: "Reports", href: "/principal/reports" }
+        { label: t("nav.dashboard"), href: "/principal" },
+        { label: t("nav.attendance"), href: "/principal/attendance" },
+        { label: t("nav.syllabus"), href: "/principal/syllabus" },
+        { label: t("nav.schedule"), href: "/principal/schedule" },
+        { label: t("nav.papers"), href: "/principal/papers" },
+        { label: t("nav.students"), href: "/principal/students" },
+        { label: t("nav.classTeachers"), href: "/principal/classes" },
+        { label: t("nav.results"), href: "/principal/results" },
+        { label: t("nav.performance"), href: "/principal/performance" },
+        { label: t("nav.alerts"), href: "/principal/alerts" },
+        { label: t("nav.messages"), href: "/principal/messages" },
+        { label: t("nav.reports"), href: "/principal/reports" }
       ]}
       bottomNavItems={[
-        { label: "Home", href: "/principal", icon: "home" },
-        { label: "Attendance", href: "/principal/attendance", icon: "user" },
-        { label: "Exams", href: "/principal/schedule", icon: "book-open" },
-        { label: "Alerts", href: "/principal/alerts", icon: "bell" },
-        { label: "Messages", href: "/principal/messages", icon: "message-circle" }
+        { label: t("nav.home"), href: "/principal", icon: "home" },
+        { label: t("nav.attendance"), href: "/principal/attendance", icon: "user" },
+        { label: t("nav.exams"), href: "/principal/schedule", icon: "book-open" },
+        { label: t("nav.alerts"), href: "/principal/alerts", icon: "bell" },
+        { label: t("nav.messages"), href: "/principal/messages", icon: "message-circle" }
       ]}
     >
       {children}
