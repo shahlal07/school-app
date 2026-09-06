@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireAnyRole } from "@/lib/auth/session";
 import { ClassAttendanceForm } from "@/components/attendance/class-attendance-form";
