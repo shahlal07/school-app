@@ -50,15 +50,6 @@ create policy exam_attendance_record_write on public.exam_attendance_records for
   )
 );
 
-create or replace function public.scan_examination_compliance()
-returns void language plpgsql security definer set search_path=public as $$
-begin
-  insert into public.alerts(type,severity,teacher_id,reference_table,reference_id,message)
-  select 'results_missing','warning',ts.teacher_id,'schedule_items',si.id,format('Results for "%s" have not been entered for students expected to have results.',si.title)
-  from public.schedule_items si join public.teacher_subjects ts on ts.subject_id=si.subject_id
-  where si.status='completed' and ((not exists(select 1 from public.exam_attendance_sessions eas where eas.schedule_item_id=si.id))
-    or exists(select 1 from public.exam_attendance_reconciliation r where r.schedule_item_id=si.id and r.result_expected=true and r.result_id is null))
-  on conflict (type,reference_id) where status='open' do nothing;
-end;
-$$;
-revoke execute on function public.scan_examination_compliance() from public, anon, authenticated;
+-- Result-alert scanner is intentionally left untouched here; the complete
+-- corrected function is established by 20260906194151 and remains the source
+-- of truth for all examination + attendance alerts.
