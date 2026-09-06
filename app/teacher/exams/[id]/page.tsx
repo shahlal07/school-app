@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Class, Student, Subject } from "@/types/examination";
+import type { ExamAttendanceStatus } from "@/types/attendance";
 import type { ScheduleItemRow } from "@/components/examination/schedule-list";
 import { formatScheduleDate } from "@/components/examination/teacher-schedule-card";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ExamPaperEditor } from "@/components/examination/exam-paper-editor";
 import { ExamPaperTimeline } from "@/components/examination/exam-paper-timeline";
 import { ExamResultsRoster } from "@/components/examination/exam-results-roster";
+import { ExamAttendanceForm } from "@/components/attendance/exam-attendance-form";
 import type { ExamPaperStatus } from "./actions";
 
 interface ExamPaperRow {
@@ -57,14 +59,15 @@ export default async function TeacherExamDetailPage({ params }: { params: { id: 
   if (!scheduleItem) notFound();
   const item = scheduleItem as ScheduleItemRow;
 
-  const [classRes, subjectRes, chapterRes, topicRes, examPaperRes, studentsRes, resultsRes] = await Promise.all([
+  const [classRes, subjectRes, chapterRes, topicRes, examPaperRes, studentsRes, resultsRes, examAttendanceRes] = await Promise.all([
     supabase.from("classes").select("*").eq("id", item.class_id).maybeSingle(),
     supabase.from("subjects").select("*").eq("id", item.subject_id).maybeSingle(),
     item.chapter_id ? supabase.from("chapters").select("name").eq("id", item.chapter_id).maybeSingle() : Promise.resolve({ data: null }),
     item.topic_id ? supabase.from("topics").select("name").eq("id", item.topic_id).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from("exam_papers").select("id,schedule_item_id,status,content,file_path,submitted_at,reviewed_at,review_notes,current_version").eq("schedule_item_id", item.id).maybeSingle(),
-    supabase.from("students").select("*").eq("class_id", item.class_id).eq("is_active", true),
-    supabase.from("test_results").select("student_id,marks_obtained,total_marks,is_absent,is_pass").eq("schedule_item_id", item.id)
+    supabase.from("students").select("*").eq("class_id", item.class_id).eq("is_active", true).order("roll_no"),
+    supabase.from("test_results").select("student_id,marks_obtained,total_marks,is_absent,is_pass").eq("schedule_item_id", item.id),
+    supabase.from("exam_attendance_sessions").select("id,status").eq("schedule_item_id", item.id).maybeSingle()
   ]);
 
   const klass = classRes.data as Class | null;
@@ -74,15 +77,21 @@ export default async function TeacherExamDetailPage({ params }: { params: { id: 
   const examPaper = examPaperRes.data as ExamPaperRow | null;
   const students = (studentsRes.data as Student[] | null) ?? [];
   const existingResults = (resultsRes.data as TestResultRow[] | null) ?? [];
+  const examAttendanceSession = examAttendanceRes.data as { id: string; status: string } | null;
   const paperStatus: ExamPaperStatus = examPaper?.status ?? "not_started";
   const subjectAndClass = [subject?.name, klass?.name].filter(Boolean).join(" - ");
 
-  const [versionsRes, jobsRes] = examPaper
-    ? await Promise.all([
-        supabase.from("exam_paper_versions").select("id,version_number,created_at,status").eq("exam_paper_id", examPaper.id).order("version_number", { ascending: false }),
-        supabase.from("exam_paper_print_jobs").select("id,status,queued_at,printed_at,copies,color_mode,duplex,priority,reprint_reason").eq("exam_paper_id", examPaper.id).order("created_at", { ascending: false })
-      ])
-    : [{ data: [] }, { data: [] }];
+  const [versionsRes, jobsRes, examAttendanceRecordsRes] = await Promise.all([
+    examPaper
+      ? supabase.from("exam_paper_versions").select("id,version_number,created_at,status").eq("exam_paper_id", examPaper.id).order("version_number", { ascending: false })
+      : Promise.resolve({ data: [] as VersionRow[] }),
+    examPaper
+      ? supabase.from("exam_paper_print_jobs").select("id,status,queued_at,printed_at,copies,color_mode,duplex,priority,reprint_reason").eq("exam_paper_id", examPaper.id).order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as PrintJobRow[] }),
+    examAttendanceSession
+      ? supabase.from("exam_attendance_records").select("student_id,status").eq("exam_attendance_session_id", examAttendanceSession.id)
+      : Promise.resolve({ data: [] as { student_id: string; status: ExamAttendanceStatus }[] })
+  ]);
 
   let fileUrl: string | null = null;
   if (examPaper?.file_path) {
@@ -92,6 +101,11 @@ export default async function TeacherExamDetailPage({ params }: { params: { id: 
 
   const versions = (versionsRes.data as VersionRow[] | null) ?? [];
   const jobs = (jobsRes.data as PrintJobRow[] | null) ?? [];
+  const examAttendanceExisting: Record<string, ExamAttendanceStatus> = {};
+  for (const row of (examAttendanceRecordsRes.data as { student_id: string; status: ExamAttendanceStatus }[] | null) ?? []) {
+    examAttendanceExisting[row.student_id] = row.status;
+  }
+  const examAttendanceComplete = examAttendanceSession?.status === "submitted" && Object.keys(examAttendanceExisting).length === students.length;
 
   return (
     <main className="p-4 sm:p-6">
@@ -107,6 +121,12 @@ export default async function TeacherExamDetailPage({ params }: { params: { id: 
       </div>
 
       <div className="mt-5 flex flex-col gap-4">
+        <Card>
+          <CardContent>
+            <ExamAttendanceForm scheduleItemId={item.id} students={students.map((student) => ({ id: student.id, roll_no: student.roll_no, name: student.name }))} existing={examAttendanceExisting} submitted={examAttendanceComplete} />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent>
             <ExamPaperEditor
