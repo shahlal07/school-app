@@ -164,3 +164,18 @@ All of the above: typecheck/lint/build gates green, migration `0012` applied and
 - [x] Owner created the first real teacher account through the fixed UI: "Ahmad" / username `ahmed` / role teacher. Verified via SQL (never touched the password): real `auth.users` row exists (`ahmed@teacher.schoolos.local`, the correctly-derived synthetic email), matching `profiles` row with `role='teacher'`, `is_active=true`.
 - [x] Owner assigned Ahmed to a real class+subject: **10th Biology** - one of the four subjects with genuine seeded Punjab Textbook Board chapters/topics, so this account can now exercise real syllabus/schedule/exam data, not just empty states.
 - This is the first account in the entire system besides the owner - the "Teacher A cannot see Teacher B" cross-isolation test, and the full teacher-side click-through (exams, papers, results, messages, alerts), can now actually be exercised for real.
+
+## Sidebar 404s fixed + navigation loading indicator
+The owner's "most of the pages are showing 404" report had two real causes:
+1. **Not actually a bug**: clicking a sidebar link via raw pixel coordinates in my own automation failed to navigate (coordinate-frame mismatch in the browser tool across screenshots of different resolutions); clicking the same link via its DOM reference worked correctly, and direct URL navigation always worked. The routes themselves were fine.
+2. **A real gap**: 4 of the 13 sidebar links (Results, Reports, Departments, Audit Log) pointed to pages that were never built - genuine 404s, present since the sidebar was first built.
+
+Fixed properly, not stubbed:
+- `/owner/departments`: real read-only view of the department registry (examination active, attendance/fees inactive placeholders).
+- `/owner/audit`: real audit log viewer, joined against `profiles` for actor names - the first page to actually surface the audit trail wired up earlier this session.
+- `/owner/results`: real query over completed `schedule_items`, showing graded-vs-total-active-students per test, linking into the teacher exam detail page to enter marks.
+- `/owner/reports`: two real operational reports computed from live data - syllabus coverage per class, and teacher compliance (papers submitted vs. tests assigned).
+
+Also added `app/loading.tsx`, `app/owner/loading.tsx`, `app/teacher/loading.tsx` (Next.js's built-in loading-UI convention) with a simple spinner, so any navigation with real latency shows immediate feedback instead of looking stuck - directly requested after the 404 confusion made a slow navigation look broken.
+
+Gates: typecheck/lint (one real fix: an unescaped apostrophe) /build all green, 23 routes total.
