@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -40,10 +40,10 @@ interface BottomNavItemConfig {
 
 const BOTTOM_NAV_ITEMS: BottomNavItemConfig[] = [
   { label: "Home", href: "/owner", icon: "home" },
-  { label: "Exams", href: "/owner/examinations", icon: "book-open" },
+  { label: "Papers", href: "/owner/papers", icon: "book-open" },
   { label: "Alerts", href: "/owner/alerts", icon: "bell" },
   { label: "Messages", href: "/owner/messages", icon: "message-circle" },
-  { label: "Profile", href: "/owner/settings", icon: "user" }
+  { label: "More", href: "#owner-more", icon: "menu" }
 ];
 
 function isActivePath(pathname: string, href: string): boolean {
@@ -56,6 +56,83 @@ function isActivePath(pathname: string, href: string): boolean {
 interface OwnerShellProps {
   children: React.ReactNode;
   ownerName: string;
+}
+
+function OwnerMobileNav({ pathname }: { pathname: string }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  return (
+    <>
+      <div className="md:hidden">
+        <BottomNav
+          items={BOTTOM_NAV_ITEMS.map((item) => ({
+            label: item.label,
+            href: item.href,
+            icon: item.icon,
+            active:
+              item.href === "#owner-more"
+                ? moreOpen
+                : isActivePath(pathname, item.href)
+          }))}
+          onItemClick={(href) => {
+            if (href === "#owner-more") {
+              setMoreOpen((open) => !open);
+            }
+          }}
+        />
+      </div>
+
+      {moreOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="absolute inset-0 bg-black/20"
+            onClick={() => setMoreOpen(false)}
+          />
+          <section
+            aria-label="Owner menu"
+            className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-neutral-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] pt-4 shadow-2xl"
+          >
+            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-neutral-200" />
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-neutral-900">All owner functions</h2>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                className="rounded-lg px-2 py-1 text-sm text-neutral-500 hover:bg-neutral-100"
+              >
+                Close
+              </button>
+            </div>
+            <nav aria-label="Owner mobile navigation">
+              <ul className="grid grid-cols-2 gap-2">
+                {SIDEBAR_NAV_ITEMS.map((item) => {
+                  const active = isActivePath(pathname, item.href);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={() => setMoreOpen(false)}
+                        aria-current={active ? "page" : undefined}
+                        className={`block rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${
+                          active
+                            ? "border-primary-200 bg-primary-50 text-primary-700"
+                            : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          </section>
+        </div>
+      )}
+    </>
+  );
 }
 
 export function OwnerShell({ children, ownerName }: OwnerShellProps) {
@@ -107,16 +184,7 @@ export function OwnerShell({ children, ownerName }: OwnerShellProps) {
         <main className="flex-1 px-4 py-6 pb-24 md:px-6 md:pb-6">{children}</main>
       </div>
 
-      <div className="md:hidden">
-        <BottomNav
-          items={BOTTOM_NAV_ITEMS.map((item) => ({
-            label: item.label,
-            href: item.href,
-            icon: item.icon,
-            active: isActivePath(pathname, item.href)
-          }))}
-        />
-      </div>
+      <OwnerMobileNav pathname={pathname} />
     </div>
   );
 }
