@@ -32,6 +32,13 @@ const icons = {
       <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </svg>
+  ),
+  menu: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+    </svg>
   )
 } as const;
 
@@ -46,28 +53,50 @@ interface NavItem {
 
 interface BottomNavProps {
   items: NavItem[];
+  onItemClick?: (href: string) => void;
 }
 
-export function BottomNav({ items }: BottomNavProps) {
+export function BottomNav({ items, onItemClick }: BottomNavProps) {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-40 border-t border-neutral-200 bg-white safe-bottom"
       aria-label="Primary navigation"
     >
       <div className="mx-auto flex max-w-md items-center justify-around">
-        {items.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset ${
-              item.active ? "text-primary-600" : "text-neutral-400 hover:text-neutral-600"
-            }`}
-            aria-current={item.active ? "page" : undefined}
-          >
-            <span>{icons[item.icon]}</span>
-            <span>{item.label}</span>
-          </Link>
-        ))}
+        {items.map((item) => {
+          const isAction = item.href.startsWith("#");
+          const className = `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset ${
+            item.active ? "text-primary-600" : "text-neutral-400 hover:text-neutral-600"
+          }`;
+
+          if (isAction) {
+            return (
+              <button
+                key={item.href}
+                type="button"
+                onClick={() => onItemClick?.(item.href)}
+                className={className}
+                aria-expanded={item.active}
+              >
+                <span>{icons[item.icon]}</span>
+                <span>{item.label}</span>
+              </button>
+            );
+          }
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={className}
+              aria-current={item.active ? "page" : undefined}
+              onClick={() => onItemClick?.(item.href)}
+            >
+              <span>{icons[item.icon]}</span>
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );
