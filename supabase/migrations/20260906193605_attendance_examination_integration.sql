@@ -14,7 +14,6 @@ create table public.exam_attendance_sessions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create table public.exam_attendance_records (
   id uuid primary key default gen_random_uuid(),
   exam_attendance_session_id uuid not null references public.exam_attendance_sessions(id) on delete cascade,
@@ -25,247 +24,19 @@ create table public.exam_attendance_records (
   marked_at timestamptz not null default now(),
   unique (exam_attendance_session_id, student_id)
 );
-
 create index idx_exam_attendance_sessions_date on public.exam_attendance_sessions(attendance_date);
 create index idx_exam_attendance_sessions_class on public.exam_attendance_sessions(class_id,section_id);
 create index idx_exam_attendance_records_student on public.exam_attendance_records(student_id);
-
 alter table public.exam_attendance_sessions enable row level security;
 alter table public.exam_attendance_records enable row level security;
-
-create policy exam_attendance_session_select on public.exam_attendance_sessions
-for select using (
-  public.is_owner() or public.can_view_school_wide()
-  or exists (
-    select 1 from public.schedule_items si
-    where si.id = exam_attendance_sessions.schedule_item_id
-      and (
-        si.teacher_id = auth.uid()
-        or exists (
-          select 1 from public.class_teachers ct
-          where ct.teacher_id = auth.uid()
-            and ct.class_id = exam_attendance_sessions.class_id
-            and ct.section_id = exam_attendance_sessions.section_id
-        )
-      )
-  )
-);
-
-create policy exam_attendance_session_insert on public.exam_attendance_sessions
-for insert with check (
-  public.is_owner() or public.can_manage_academics()
-  or exists (
-    select 1 from public.schedule_items si
-    where si.id = exam_attendance_sessions.schedule_item_id
-      and (
-        si.teacher_id = auth.uid()
-        or exists (
-          select 1 from public.class_teachers ct
-          where ct.teacher_id = auth.uid()
-            and ct.class_id = exam_attendance_sessions.class_id
-            and ct.section_id = exam_attendance_sessions.section_id
-        )
-      )
-  )
-);
-
-create policy exam_attendance_session_update on public.exam_attendance_sessions
-for update using (public.is_owner() or public.can_manage_academics() or recorded_by = auth.uid())
-with check (public.is_owner() or public.can_manage_academics() or recorded_by = auth.uid());
-
-create policy exam_attendance_record_select on public.exam_attendance_records
-for select using (
-  public.is_owner() or public.can_view_school_wide()
-  or exists (
-    select 1 from public.exam_attendance_sessions eas
-    join public.schedule_items si on si.id = eas.schedule_item_id
-    where eas.id = exam_attendance_records.exam_attendance_session_id
-      and (
-        si.teacher_id = auth.uid()
-        or exists (
-          select 1 from public.class_teachers ct
-          where ct.teacher_id = auth.uid()
-            and ct.class_id = eas.class_id
-            and ct.section_id = eas.section_id
-        )
-      )
-  )
-);
-
-create policy exam_attendance_record_write on public.exam_attendance_records
-for all using (
-  public.is_owner() or public.can_manage_academics()
-  or exists (
-    select 1 from public.exam_attendance_sessions eas
-    join public.schedule_items si on si.id = eas.schedule_item_id
-    where eas.id = exam_attendance_records.exam_attendance_session_id
-      and (
-        si.teacher_id = auth.uid()
-        or eas.recorded_by = auth.uid()
-        or exists (
-          select 1 from public.class_teachers ct
-          where ct.teacher_id = auth.uid()
-            and ct.class_id = eas.class_id
-            and ct.section_id = eas.section_id
-        )
-      )
-  )
-)
-with check (
-  public.is_owner() or public.can_manage_academics()
-  or exists (
-    select 1 from public.exam_attendance_sessions eas
-    join public.schedule_items si on si.id = eas.schedule_item_id
-    where eas.id = exam_attendance_records.exam_attendance_session_id
-      and (
-        si.teacher_id = auth.uid()
-        or eas.recorded_by = auth.uid()
-        or exists (
-          select 1 from public.class_teachers ct
-          where ct.teacher_id = auth.uid()
-            and ct.class_id = eas.class_id
-            and ct.section_id = eas.section_id
-        )
-      )
-  )
-);
-
-create or replace function public.submit_exam_attendance(
-  p_schedule_item_id uuid,
-  p_records jsonb
-)
-returns uuid
-language plpgsql
-security invoker
-set search_path = public
-as $$
-declare
-  v_session public.exam_attendance_sessions%rowtype;
-  v_schedule public.schedule_items%rowtype;
-  v_uid uuid := auth.uid();
-  v_count int;
-begin
-  if v_uid is null then raise exception 'not_authenticated'; end if;
-  select * into v_schedule from public.schedule_items where id = p_schedule_item_id;
-  if not found then raise exception 'schedule_not_found'; end if;
-
-  insert into public.exam_attendance_sessions(schedule_item_id,class_id,section_id,attendance_date,status,recorded_by,recorded_at)
-  values (v_schedule.id,v_schedule.class_id,(select section_id from public.students where class_id=v_schedule.class_id limit 1),v_schedule.scheduled_date,'draft',v_uid,now())
-  on conflict (schedule_item_id) do update set updated_at=now()
-  returning * into v_session;
-
-  if jsonb_typeof(p_records) <> 'array' then raise exception 'records_must_be_array'; end if;
-
-  insert into public.exam_attendance_records(exam_attendance_session_id,student_id,roll_no_snapshot,status,note,marked_at)
-  select v_session.id,
-         r.student_id,
-         r.roll_no,
-         r.status,
-         nullif(r.note,''),
-         now()
-  from jsonb_to_recordset(p_records) as r(student_id uuid, roll_no text, status text, note text)
-  on conflict (exam_attendance_session_id,student_id)
-  do update set roll_no_snapshot=excluded.roll_no_snapshot,status=excluded.status,note=excluded.note,marked_at=now();
-
-  select count(*) into v_count from public.exam_attendance_records where exam_attendance_session_id=v_session.id;
-  if v_count = 0 then raise exception 'no_records'; end if;
-
-  update public.exam_attendance_sessions
-  set status='submitted', recorded_by=v_uid, recorded_at=now(), updated_at=now()
-  where id=v_session.id;
-
-  return v_session.id;
-end;
-$$;
-
-revoke execute on function public.submit_exam_attendance(uuid,jsonb) from public;
-revoke execute on function public.submit_exam_attendance(uuid,jsonb) from anon;
+create policy exam_attendance_session_select on public.exam_attendance_sessions for select using (public.is_owner() or public.can_view_school_wide() or exists (select 1 from public.schedule_items si where si.id=exam_attendance_sessions.schedule_item_id and (si.teacher_id=auth.uid() or exists (select 1 from public.class_teachers ct where ct.teacher_id=auth.uid() and ct.class_id=exam_attendance_sessions.class_id and ct.section_id=exam_attendance_sessions.section_id))));
+create policy exam_attendance_session_insert on public.exam_attendance_sessions for insert with check (public.is_owner() or public.can_manage_academics() or exists (select 1 from public.schedule_items si where si.id=exam_attendance_sessions.schedule_item_id and (si.teacher_id=auth.uid() or exists (select 1 from public.class_teachers ct where ct.teacher_id=auth.uid() and ct.class_id=exam_attendance_sessions.class_id and ct.section_id=exam_attendance_sessions.section_id))));
+create policy exam_attendance_session_update on public.exam_attendance_sessions for update using (public.is_owner() or public.can_manage_academics() or recorded_by=auth.uid()) with check (public.is_owner() or public.can_manage_academics() or recorded_by=auth.uid());
+create policy exam_attendance_record_select on public.exam_attendance_records for select using (public.is_owner() or public.can_view_school_wide() or exists (select 1 from public.exam_attendance_sessions eas join public.schedule_items si on si.id=eas.schedule_item_id where eas.id=exam_attendance_records.exam_attendance_session_id and (si.teacher_id=auth.uid() or exists (select 1 from public.class_teachers ct where ct.teacher_id=auth.uid() and ct.class_id=eas.class_id and ct.section_id=eas.section_id))));
+create policy exam_attendance_record_write on public.exam_attendance_records for all using (public.is_owner() or public.can_manage_academics() or exists (select 1 from public.exam_attendance_sessions eas join public.schedule_items si on si.id=eas.schedule_item_id where eas.id=exam_attendance_records.exam_attendance_session_id and (si.teacher_id=auth.uid() or eas.recorded_by=auth.uid() or exists (select 1 from public.class_teachers ct where ct.teacher_id=auth.uid() and ct.class_id=eas.class_id and ct.section_id=eas.section_id)))) with check (public.is_owner() or public.can_manage_academics() or exists (select 1 from public.exam_attendance_sessions eas join public.schedule_items si on si.id=eas.schedule_item_id where eas.id=exam_attendance_records.exam_attendance_session_id and (si.teacher_id=auth.uid() or eas.recorded_by=auth.uid() or exists (select 1 from public.class_teachers ct where ct.teacher_id=auth.uid() and ct.class_id=eas.class_id and ct.section_id=eas.section_id))));
+create or replace function public.submit_exam_attendance(p_schedule_item_id uuid,p_records jsonb) returns uuid language plpgsql security invoker set search_path=public as $$ declare v_session public.exam_attendance_sessions%rowtype; v_schedule public.schedule_items%rowtype; v_uid uuid:=auth.uid(); v_count int; begin if v_uid is null then raise exception 'not_authenticated'; end if; select * into v_schedule from public.schedule_items where id=p_schedule_item_id; if not found then raise exception 'schedule_not_found'; end if; insert into public.exam_attendance_sessions(schedule_item_id,class_id,section_id,attendance_date,status,recorded_by,recorded_at) values(v_schedule.id,v_schedule.class_id,(select section_id from public.students where class_id=v_schedule.class_id limit 1),v_schedule.scheduled_date,'draft',v_uid,now()) on conflict(schedule_item_id) do update set updated_at=now() returning * into v_session; if jsonb_typeof(p_records)<>'array' then raise exception 'records_must_be_array'; end if; insert into public.exam_attendance_records(exam_attendance_session_id,student_id,roll_no_snapshot,status,note,marked_at) select v_session.id,r.student_id,r.roll_no,r.status,nullif(r.note,''),now() from jsonb_to_recordset(p_records) as r(student_id uuid,roll_no text,status text,note text) on conflict(exam_attendance_session_id,student_id) do update set roll_no_snapshot=excluded.roll_no_snapshot,status=excluded.status,note=excluded.note,marked_at=now(); select count(*) into v_count from public.exam_attendance_records where exam_attendance_session_id=v_session.id; if v_count=0 then raise exception 'no_records'; end if; update public.exam_attendance_sessions set status='submitted',recorded_by=v_uid,recorded_at=now(),updated_at=now() where id=v_session.id; return v_session.id; end; $$;
+revoke execute on function public.submit_exam_attendance(uuid,jsonb) from public,anon;
 grant execute on function public.submit_exam_attendance(uuid,jsonb) to authenticated;
-
-create or replace view public.attendance_student_summary
-with (security_invoker = true)
-as
-select
-  s.id as student_id,
-  s.class_id,
-  s.section_id,
-  s.roll_no,
-  s.name,
-  count(ar.id)::int as recorded_days,
-  count(*) filter (where ar.status in ('present','late','excused'))::int as attended_days,
-  count(*) filter (where ar.status='absent')::int as absent_days,
-  count(*) filter (where ar.status='late')::int as late_days,
-  count(*) filter (where ar.status='leave')::int as leave_days,
-  case when count(ar.id)=0 then null
-       else round(100.0 * (count(*) filter (where ar.status in ('present','late','excused'))) / count(ar.id),1)
-  end as attendance_percentage
-from public.students s
-left join public.attendance_records ar on ar.student_id=s.id
-left join public.attendance_sessions ats on ats.id=ar.session_id and ats.status='submitted'
-where s.is_active
-  and (ats.id is null or ats.status='submitted')
-group by s.id,s.class_id,s.section_id,s.roll_no,s.name;
-
-create or replace view public.exam_attendance_reconciliation
-with (security_invoker = true)
-as
-select
-  si.id as schedule_item_id,
-  si.class_id,
-  si.subject_id,
-  si.scheduled_date,
-  si.title,
-  s.id as student_id,
-  s.roll_no,
-  s.name,
-  ear.status as exam_attendance_status,
-  tr.id as result_id,
-  tr.is_absent as result_absent,
-  tr.marks_obtained,
-  tr.total_marks,
-  case
-    when ear.status='absent' then false
-    when ear.status='present' or ear.status='excused' then true
-    else null
-  end as result_expected,
-  case
-    when (ear.status in ('present','excused')) and tr.id is null then true
-    else false
-  end as missing_result_after_exam_presence
-from public.schedule_items si
-join public.students s on s.class_id=si.class_id and s.is_active
-left join public.exam_attendance_sessions eas on eas.schedule_item_id=si.id and eas.status='submitted'
-left join public.exam_attendance_records ear on ear.exam_attendance_session_id=eas.id and ear.student_id=s.id
-left join public.test_results tr on tr.schedule_item_id=si.id and tr.student_id=s.id;
-
-create or replace view public.attendance_academic_signal
-with (security_invoker = true)
-as
-select
-  ass.student_id,
-  ass.class_id,
-  ass.section_id,
-  ass.roll_no,
-  ass.name,
-  ass.attendance_percentage,
-  coalesce(sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.marks_obtained end),0) as marks_sum,
-  coalesce(sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.total_marks end),0) as possible_sum,
-  case when coalesce(sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.total_marks end),0)=0 then null
-       else round(100.0 * sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.marks_obtained end) / sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.total_marks end),1)
-  end as assessment_percentage,
-  case
-    when ass.attendance_percentage is not null and ass.attendance_percentage < 75
-      and (case when coalesce(sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.total_marks end),0)=0 then null
-                else 100.0 * sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.marks_obtained end) / sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.total_marks end) end) < 50
-      then 'attendance_and_academic'
-    when ass.attendance_percentage is not null and ass.attendance_percentage < 75
-      then 'attendance_primary'
-    when ass.attendance_percentage is not null and ass.attendance_percentage >= 90
-      and (case when coalesce(sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.total_marks end),0)=0 then null
-                else 100.0 * sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.marks_obtained end) / sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.marks_obtained end) end) < 50
-      then 'academic_despite_attendance'
-    else 'normal'
-  end as signal
-from public.attendance_student_summary ass
-left join public.test_results tr on tr.student_id=ass.student_id
-group by ass.student_id,ass.class_id,ass.section_id,ass.roll_no,ass.name,ass.attendance_percentage;
+create or replace view public.attendance_student_summary with (security_invoker=true) as select s.id student_id,s.class_id,s.section_id,s.roll_no,s.name,count(ats.id)::int recorded_days,count(*) filter(where ar.status in('present','late','excused'))::int attended_days,count(*) filter(where ar.status='absent')::int absent_days,count(*) filter(where ar.status='late')::int late_days,count(*) filter(where ar.status='leave')::int leave_days,round(100.0*count(*) filter(where ar.status in('present','late','excused'))/nullif(count(ats.id),0),1) attendance_percentage from public.students s left join public.attendance_records ar on ar.student_id=s.id left join public.attendance_sessions ats on ats.id=ar.session_id and ats.status='submitted' where s.is_active group by s.id,s.class_id,s.section_id,s.roll_no,s.name;
+create or replace view public.exam_attendance_reconciliation with (security_invoker=true) as select si.id schedule_item_id,si.class_id,si.subject_id,si.scheduled_date,si.title,s.section_id,s.id student_id,s.roll_no,s.name,ear.status exam_attendance_status,tr.id result_id,tr.is_absent result_absent,tr.marks_obtained,tr.total_marks,case when ear.status='absent' then false when ear.status in('present','excused') then true else null end result_expected,case when ear.status in('present','excused') and tr.id is null then true else false end missing_result_after_exam_presence from public.schedule_items si join public.students s on s.class_id=si.class_id and s.is_active left join public.exam_attendance_sessions eas on eas.schedule_item_id=si.id and eas.status='submitted' left join public.exam_attendance_records ear on ear.exam_attendance_session_id=eas.id and ear.student_id=s.id left join public.test_results tr on tr.schedule_item_id=si.id and tr.student_id=s.id;
+create or replace view public.attendance_academic_signal with (security_invoker=true) as select ass.student_id,ass.class_id,ass.section_id,ass.roll_no,ass.name,ass.attendance_percentage,coalesce(sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.marks_obtained end),0) marks_sum,coalesce(sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.total_marks end),0) possible_sum,round(100.0*sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.marks_obtained end)/nullif(sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.total_marks end),0),1) assessment_percentage,case when ass.attendance_percentage<75 and round(100.0*sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.marks_obtained end)/nullif(sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.total_marks end),0),1)<50 then 'attendance_and_academic' when ass.attendance_percentage<75 then 'attendance_primary' when ass.attendance_percentage>=90 and round(100.0*sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.marks_obtained end)/nullif(sum(case when tr.is_absent=false and tr.marks_obtained is not null then tr.total_marks end),0),1)<50 then 'academic_despite_attendance' else 'normal' end signal from public.attendance_student_summary ass left join public.test_results tr on tr.student_id=ass.student_id group by ass.student_id,ass.class_id,ass.section_id,ass.roll_no,ass.name,ass.attendance_percentage;
