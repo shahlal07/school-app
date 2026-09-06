@@ -107,5 +107,8 @@ Fixed via a new `SECURITY DEFINER` helper `user_has_role(target_user_id, target_
 
 Migrations: `20260906134010_phase_a_coordinator_can_message_teachers`, `20260906134223_phase_a_fix_messages_recipient_role_check`. Security advisor re-run: one new expected `user_has_role` entry in the same already-accepted warning pattern, nothing else new. Full `tsc`/`lint`/`build` clean afterward.
 
+### Browser click-through confirmation (production, owner-preview)
+After both deploys went out, clicked through the live production site (owner signed in, previewing the principal/coordinator/clerk segments their layouts explicitly allow): `/principal` (real stat counts), `/coordinator` (real subjects now rendering by name - confirms the subjects-visibility fix live, not just in SQL), `/coordinator/papers` (correct honest empty state), `/coordinator/schedule` (real subjects/classes list, confirms the fix again on a second page), `/clerk` (real per-class roster breakdown), and `/coordinator/messages` (contact list + "Broadcast to all" rendering exactly like owner's, an existing real conversation with usman displaying correctly, URL routing staying inside `/coordinator/messages?teacher=...` rather than bouncing to the owner-only route - confirms the `basePath` fix).
+
 ### Still open
 1. Manual click-through verification of the new dashboards as the actual test-role accounts (vs. owner previewing them) has not been done - only the owner's own click-through (account creation, staff list, dashboard previews) plus the SQL-level RLS proof above.
