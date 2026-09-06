@@ -179,3 +179,10 @@ Fixed properly, not stubbed:
 Also added `app/loading.tsx`, `app/owner/loading.tsx`, `app/teacher/loading.tsx` (Next.js's built-in loading-UI convention) with a simple spinner, so any navigation with real latency shows immediate feedback instead of looking stuck - directly requested after the 404 confusion made a slow navigation look broken.
 
 Gates: typecheck/lint (one real fix: an unescaped apostrophe) /build all green, 23 routes total.
+
+## Teacher home was still a Phase 1 placeholder
+Caught by the owner asking directly whether separate role dashboards actually existed: `/teacher`'s Home tab had been left as literal placeholder text ("today's tests land in a later phase") since Phase 1 - every other teacher tab (Exams, Alerts, Messages) had been built, but the bottom-nav's actual Home destination never was. Built for real: greeting, three quick-stat links (today's exam count, open alert count, unread message count), and today's exam cards inline - the same "what needs my attention" front door the owner dashboard already had.
+
+Confirmed for the owner: no separate student dashboard/login exists, by original design decision (roster-only, no accounts, in this pass) - not an oversight. Administration-side (owner/teacher) roles remain the focus; student roster data continues to be added and managed now regardless of the login decision.
+
+Gates: typecheck/lint/build all green, 23 routes, `/teacher` now a real page (1.01 kB, matching `/teacher/exams`'s size, not the near-empty placeholder's 156 B).
