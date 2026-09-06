@@ -2,221 +2,32 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-
 import type { Student } from "@/types/examination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { saveTestResults, type TestResultInput } from "@/app/teacher/exams/[id]/actions";
+import { submitResultsForReview } from "@/app/teacher/exams/[id]/result-actions";
 
-export interface ExistingTestResult {
-  student_id: string;
-  marks_obtained: number | null;
-  total_marks: number;
-  is_absent: boolean;
-  is_pass: boolean | null;
+export interface ExistingTestResult { student_id:string; marks_obtained:number|null; total_marks:number; is_absent:boolean; is_pass:boolean|null; }
+export interface ExamResultsRosterProps { scheduleItemId:string; students:Student[]; existingResults:ExistingTestResult[]; }
+interface RowState { marks:string; absent:boolean; isPass:boolean|null; }
+
+function ExamResultsRosterInner({scheduleItemId,students,existingResults}:ExamResultsRosterProps){
+ const router=useRouter(); const {toast}=useToast(); const resultByStudent=useMemo(()=>new Map(existingResults.map(r=>[r.student_id,r])),[existingResults]);
+ const sortedStudents=useMemo(()=>[...students].sort((a,b)=>a.roll_no.localeCompare(b.roll_no,undefined,{numeric:true})),[students]);
+ const [totalMarks,setTotalMarks]=useState(String(existingResults[0]?.total_marks??10)); const [saving,setSaving]=useState(false); const [submitting,setSubmitting]=useState(false); const [search,setSearch]=useState("");
+ const [rows,setRows]=useState<Record<string,RowState>>(()=>Object.fromEntries(students.map(s=>{const r=resultByStudent.get(s.id);return [s.id,{marks:r?.marks_obtained!=null?String(r.marks_obtained):"",absent:r?.is_absent??false,isPass:r?.is_pass??null}] }));
+ const visible=useMemo(()=>{const q=search.trim().toLowerCase();return q?sortedStudents.filter(s=>s.name.toLowerCase().includes(q)||s.roll_no.toLowerCase().includes(q)):sortedStudents},[sortedStudents,search]);
+ const update=(id:string,patch:Partial<RowState>)=>setRows(prev=>({...prev,[id]:{...prev[id],...patch}}));
+ const save=async()=>{const total=Number(totalMarks);if(!Number.isFinite(total)||total<=0){toast("Enter a valid total marks value first.","danger");return;}setSaving(true);const payload:TestResultInput[]=sortedStudents.map(s=>{const r=rows[s.id];const n=r.marks.trim()===""?null:Number(r.marks);return{studentId:s.id,isAbsent:r.absent,marksObtained:r.absent||n===null||!Number.isFinite(n)?null:n}});const result=await saveTestResults(scheduleItemId,total,payload);setSaving(false);if(result.error){toast(result.error,"danger");return;}toast("Results saved","success");router.refresh();};
+ const submit=async()=>{setSubmitting(true);const result=await submitResultsForReview(scheduleItemId);setSubmitting(false);if(result.error){toast(result.error,"danger");return;}toast("Results submitted for coordinator review","success");router.refresh();};
+ if(!sortedStudents.length)return <p className="text-sm text-neutral-500">No students found for this class.</p>;
+ return <div className="flex flex-col gap-3">
+   <div className="grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)]"><Input label="Total marks" type="number" min={1} value={totalMarks} onChange={e=>setTotalMarks(e.target.value)}/><Input label="Search students" type="search" placeholder="Roll number or name..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
+   <ul className="flex flex-col gap-2">{visible.map(student=>{const row=rows[student.id];return <li key={student.id} className="flex flex-col gap-2 rounded-xl border border-neutral-200 p-3"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-medium text-neutral-900">{student.name}</p><p className="text-xs text-neutral-500">Roll #{student.roll_no}</p></div>{row.isPass!==null&&!row.absent&&<Badge variant={row.isPass?"success":"danger"}>{row.isPass?"Pass":"Fail"}</Badge>}</div><div className="flex flex-wrap items-center gap-3"><div className="w-28"><Input label="Marks" type="number" min={0} disabled={row.absent} value={row.marks} onChange={e=>update(student.id,{marks:e.target.value})}/></div><label className="flex items-center gap-2 pt-5 text-sm text-neutral-700"><input type="checkbox" className="h-4 w-4 rounded border-neutral-300 text-primary-600" checked={row.absent} onChange={e=>update(student.id,{absent:e.target.checked,marks:e.target.checked?"":row.marks})}/>Absent</label></div></li>})}</ul>
+   <div className="flex flex-wrap gap-2"><Button type="button" variant="secondary" loading={saving} onClick={save}>Save all</Button><Button type="button" variant="primary" loading={submitting} onClick={submit}>Submit results for review</Button></div>
+ </div>;
 }
-
-export interface ExamResultsRosterProps {
-  scheduleItemId: string;
-  students: Student[];
-  existingResults: ExistingTestResult[];
-}
-
-interface RowState {
-  marks: string;
-  absent: boolean;
-  isPass: boolean | null;
-}
-
-function ExamResultsRosterInner({
-  scheduleItemId,
-  students,
-  existingResults
-}: ExamResultsRosterProps) {
-  const router = useRouter();
-  const { toast } = useToast();
-
-  const resultByStudent = useMemo(
-    () => new Map(existingResults.map((r) => [r.student_id, r])),
-    [existingResults]
-  );
-
-  const defaultTotalMarks = existingResults[0]?.total_marks ?? 10;
-
-  const [totalMarks, setTotalMarks] = useState(String(defaultTotalMarks));
-  const [rows, setRows] = useState<Record<string, RowState>>(() => {
-    const initial: Record<string, RowState> = {};
-    for (const student of students) {
-      const existing = resultByStudent.get(student.id);
-      initial[student.id] = {
-        marks: existing?.marks_obtained != null ? String(existing.marks_obtained) : "",
-        absent: existing?.is_absent ?? false,
-        isPass: existing?.is_pass ?? null
-      };
-    }
-    return initial;
-  });
-  const [saving, setSaving] = useState(false);
-
-  const sortedStudents = useMemo(
-    () => [...students].sort((a, b) => a.roll_no.localeCompare(b.roll_no, undefined, { numeric: true })),
-    [students]
-  );
-
-  const [search, setSearch] = useState("");
-
-  // Filters only the rendered list - `rows` (the state tracking every
-  // student's entered marks) stays keyed off the full `sortedStudents` list
-  // regardless of the search term, so a hidden student's marks are still
-  // included when "Save all" runs.
-  const visibleStudents = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return sortedStudents;
-    return sortedStudents.filter(
-      (student) =>
-        student.roll_no.toLowerCase().includes(query) ||
-        student.name.toLowerCase().includes(query)
-    );
-  }, [sortedStudents, search]);
-
-  const updateRow = (studentId: string, patch: Partial<RowState>) => {
-    setRows((prev) => ({
-      ...prev,
-      [studentId]: { ...prev[studentId], ...patch }
-    }));
-  };
-
-  const handleSaveAll = async () => {
-    const parsedTotal = Number(totalMarks);
-    if (!Number.isFinite(parsedTotal) || parsedTotal <= 0) {
-      toast("Enter a valid total marks value first.", "danger");
-      return;
-    }
-
-    const results: TestResultInput[] = sortedStudents.map((student) => {
-      const row = rows[student.id];
-      const marksNumber = row.marks.trim() === "" ? null : Number(row.marks);
-      return {
-        studentId: student.id,
-        isAbsent: row.absent,
-        marksObtained:
-          row.absent || marksNumber === null || !Number.isFinite(marksNumber)
-            ? null
-            : marksNumber
-      };
-    });
-
-    setSaving(true);
-    const result = await saveTestResults(scheduleItemId, parsedTotal, results);
-    setSaving(false);
-
-    if (result.error) {
-      toast(result.error, "danger");
-      return;
-    }
-
-    toast("Results saved", "success");
-    router.refresh();
-  };
-
-  if (sortedStudents.length === 0) {
-    return <p className="text-sm text-neutral-500">No students found for this class.</p>;
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="max-w-[160px]">
-        <Input
-          label="Total marks"
-          type="number"
-          inputMode="decimal"
-          min={1}
-          value={totalMarks}
-          onChange={(e) => setTotalMarks(e.target.value)}
-        />
-      </div>
-
-      <div className="max-w-xs">
-        <Input
-          label="Search students"
-          type="search"
-          placeholder="Search by roll number or name..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      {visibleStudents.length === 0 ? (
-        <p className="text-sm text-neutral-500">No students match &quot;{search}&quot;.</p>
-      ) : (
-      <ul className="flex flex-col gap-2">
-        {visibleStudents.map((student) => {
-          const row = rows[student.id];
-          return (
-            <li
-              key={student.id}
-              className="flex flex-col gap-2 rounded-xl border border-neutral-200 p-3"
-            >
-              <div className="flex min-w-0 items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-neutral-900">
-                    {student.name}
-                  </p>
-                  <p className="text-xs text-neutral-500">Roll #{student.roll_no}</p>
-                </div>
-                {row.isPass !== null && !row.absent && (
-                  <Badge variant={row.isPass ? "success" : "danger"}>
-                    {row.isPass ? "Pass" : "Fail"}
-                  </Badge>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="w-28">
-                  <Input
-                    label="Marks"
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    disabled={row.absent}
-                    value={row.marks}
-                    onChange={(e) => updateRow(student.id, { marks: e.target.value })}
-                  />
-                </div>
-                <label className="flex items-center gap-2 pt-5 text-sm text-neutral-700">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                    checked={row.absent}
-                    onChange={(e) =>
-                      updateRow(student.id, {
-                        absent: e.target.checked,
-                        marks: e.target.checked ? "" : row.marks
-                      })
-                    }
-                  />
-                  Absent
-                </label>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      )}
-
-      <Button type="button" variant="primary" loading={saving} onClick={handleSaveAll}>
-        Save all
-      </Button>
-    </div>
-  );
-}
-
-export function ExamResultsRoster(props: ExamResultsRosterProps) {
-  return (
-    <ToastProvider>
-      <ExamResultsRosterInner {...props} />
-    </ToastProvider>
-  );
-}
+export function ExamResultsRoster(props:ExamResultsRosterProps){return <ToastProvider><ExamResultsRosterInner {...props}/></ToastProvider>}
