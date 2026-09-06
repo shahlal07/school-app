@@ -16,22 +16,22 @@ function signalClass(signal: AttendanceAcademicSignal["signal"]) {
   return "bg-violet-50 text-violet-700";
 }
 
-export function AcademicOperationsBridge({ signals, examExceptions, trend }: { signals: AttendanceAcademicSignal[]; examExceptions: ExamAttendanceReconciliationRow[]; trend: TrendRow[] }) {
+export function AcademicOperationsBridge({ signals, examExceptions, trend, attendanceHref }: { signals: AttendanceAcademicSignal[]; examExceptions: ExamAttendanceReconciliationRow[]; trend: TrendRow[]; attendanceHref: string }) {
   const latest = trend.at(-1);
   const previous = trend.length > 1 ? trend[trend.length - 2] : null;
   const delta = latest && previous ? Math.round((latest.attendance_percentage - previous.attendance_percentage) * 10) / 10 : null;
 
   return (
-    <div className="mt-6 space-y-5">
+    <div className="mt-6">
       <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
         <div className="border-b border-neutral-100 px-4 py-4 sm:px-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Academic operations</p>
               <h2 className="mt-1 text-lg font-semibold text-neutral-900">Attendance ↔ Examination</h2>
-              <p className="mt-1 text-xs text-neutral-500">Attendance explains academic risk; exam attendance explains whether a result should exist.</p>
+              <p className="mt-1 text-xs text-neutral-500">Daily attendance explains academic risk; exam attendance explains whether a result should exist.</p>
             </div>
-            <Link href="/coordinator/attendance" className="text-xs font-semibold text-primary-600">Open attendance center</Link>
+            <Link href={attendanceHref} className="text-xs font-semibold text-primary-600">Open attendance center</Link>
           </div>
         </div>
 
@@ -44,7 +44,7 @@ export function AcademicOperationsBridge({ signals, examExceptions, trend }: { s
 
         <div className="grid gap-5 border-t border-neutral-100 p-4 sm:grid-cols-2 sm:p-5">
           <div>
-            <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold text-neutral-800">Students needing attention</h3><Link href="/coordinator/performance" className="text-xs font-medium text-primary-600">Performance</Link></div>
+            <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold text-neutral-800">Students needing attention</h3></div>
             <div className="space-y-2">
               {signals.slice(0, 8).map((student) => (
                 <div key={student.student_id} className="rounded-xl border border-neutral-100 px-3 py-3">
@@ -60,7 +60,7 @@ export function AcademicOperationsBridge({ signals, examExceptions, trend }: { s
           </div>
 
           <div>
-            <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold text-neutral-800">Exam exceptions</h3><Link href="/coordinator/exam-sets" className="text-xs font-medium text-primary-600">Exam sets</Link></div>
+            <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold text-neutral-800">Exam exceptions</h3></div>
             <div className="space-y-2">
               {examExceptions.slice(0, 8).map((item, index) => (
                 <Link key={`${item.schedule_item_id}-${item.student_id}-${index}`} href={`/teacher/exams/${item.schedule_item_id}`} className="block rounded-xl border border-neutral-100 px-3 py-3 hover:bg-neutral-50">
