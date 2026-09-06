@@ -107,7 +107,28 @@ Commit: `12b6170`
 
 **Full consolidated build gate** (typecheck/lint/build, run once after all 6 agents had finished and my integration fixes were in): all green. **18 routes total**, all correctly dynamic.
 
-Commits: pending (this UI batch + my integration fixes, to be committed now)
+Commits: `90ac72c`
+
+## Phase 10 — PWA polish
+- [x] Found and fixed a real gap: Kimi's `install-pwa-banner.tsx` component (built in Phase 0) was fully functional but **never mounted anywhere** in the app - it existed on disk, unused, since the very first commit. Mounted it on `/login` specifically (not the root layout) after catching that mounting it globally would visually collide with `BottomNav` - both are `fixed bottom-0` on `/owner`/`/teacher`, so the banner would cover the navigation on those pages. `/login` has no bottom nav and is where a first-time visitor is most likely to see it anyway.
+
+## Phase 11 — Security audit
+- [x] Verified RLS is enabled on **all 18 tables** in `public` schema via `list_tables` - no gaps, no table silently left unprotected (this is the single easiest mistake to make with Supabase, since RLS defaults off per-table).
+- [x] Security advisor: same 2 accepted/documented items as every prior check (residual `is_owner()` RPC exposure - safe, self-reporting only; leaked-password-protection toggle - owner action, not migration-fixable), no new findings across 11 migrations.
+- [x] Performance advisor run for the first time this session: found real, legitimate findings - `unindexed_foreign_keys` (9 instances), `auth_rls_initplan` (24 - `auth.uid()` calls in policies should be wrapped `(select auth.uid())` so Postgres caches them per-query instead of re-evaluating per-row), `multiple_permissive_policies` (65 - most tables have both a scoped `_select` policy and a `_write_owner_only for all` policy, both of which apply to SELECT and get OR-combined instead of consolidated into one).
+  - **Fixed now**: the 9 missing FK indexes (migration `0011_missing_fk_indexes`) - purely additive, zero behavior change, safe at any time.
+  - **Deliberately not fixed now**: the RLS policy-text optimizations (`auth_rls_initplan`, `multiple_permissive_policies`). These are real but currently zero-impact (every table has between 0 and 82 rows) and touching the wording of 15+ already-live-tested security policies in one unsupervised pass carries real risk of introducing an actual access-control regression for a performance benefit that doesn't matter yet at this scale. Flagged here as known follow-up work for a future session where each changed policy can be re-verified with the same live JWT-context testing used when they were first written, not rushed through as a batch.
+- [x] Owner settings page (`/owner/settings`): makes `school_settings.pass_percentage` actually editable through the UI - previously only changeable via direct database access, which was a real gap against the "configurable, never hard-coded" requirement it was built to satisfy in Phase 5.
+
+**Final consolidated build gate**: typecheck/lint/build all green, **19 routes total**.
+
+## Honest gap summary (what a next session should pick up first)
+1. `SUPABASE_SERVICE_ROLE_KEY` still not set in Vercel - owner-invites-teacher is written but has never actually run.
+2. No second real user exists yet, so the full "Teacher A cannot see Teacher B" cross-isolation acceptance test, message immutability/recipient-restriction, and the teacher-side of nearly every feature (exams, papers, messages, alerts) are reviewed-correct but not live-exercised end-to-end as a real teacher.
+3. `auth_rls_initplan`/`multiple_permissive_policies` performance advisories (see above) - real, deliberately deferred.
+4. Leaked-password-protection toggle - owner action in the Supabase dashboard.
+5. PG-8 and non-core-9th/10th-subject chapter content - deliberately left empty rather than fabricated; a real content-authoring pass, not a coding task.
+6. No audit_logs are actually being written yet despite the table/RLS existing since Phase 1 - no server action calls `audit_logs.insert()` anywhere. Worth wiring into the more sensitive actions (invite/deactivate teacher, approve/reject paper, resolve alert) in a future pass.
 
 Commit: `eedc9dd` (schema + seed + type fixes)
 

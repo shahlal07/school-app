@@ -1,4 +1,5 @@
 import { LoginForm } from "./login-form";
+import { InstallPwaBanner } from "@/components/shared/install-pwa-banner";
 
 export default function LoginPage() {
   return (
@@ -15,6 +16,8 @@ export default function LoginPage() {
           <LoginForm />
         </div>
       </div>
+
+      <InstallPwaBanner />
     </main>
   );
 }
