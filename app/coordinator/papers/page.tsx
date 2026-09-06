@@ -6,14 +6,15 @@ import type { ExamPaper, ExamPaperStatus, PaperQueueRow } from "@/components/exa
 import { PaperReviewQueue } from "@/components/examination/paper-review-queue";
 
 /**
- * Full read+write mirror of app/owner/papers/page.tsx. The exam_papers
- * review-field trigger (enforce_exam_paper_review_fields()) originally
- * hardcoded is_owner() independently of RLS, which would have silently
- * blocked a coordinator's approve/reject even with can_manage_academics()
- * write access - fixed in migration
- * 20260906124632_phase_a_extend_paper_review_trigger_to_coordinator.sql to
- * check can_manage_academics() instead, matching app/owner/papers/actions.ts's
- * guard (also widened to requireAnyRole(["owner","academic_coordinator"])).
+ * Full read+write paper-review queue - approving/rejecting exam papers is
+ * the academic coordinator's job (app/owner/papers/page.tsx is now a
+ * read-only mirror of this, since it's day-to-day academic operations, not
+ * the owner's). approvePaper()/rejectPaper() (app/owner/papers/actions.ts,
+ * kept at that path since this page imports it directly) are guarded with
+ * requireRole("academic_coordinator"). The exam_papers review-field trigger
+ * (enforce_exam_paper_review_fields()) checks can_manage_academics()
+ * (migration 20260906124632_phase_a_extend_paper_review_trigger_to_coordinator.sql),
+ * so it doesn't block a coordinator's approve/reject either.
  */
 export default async function CoordinatorPapersPage() {
   const supabase = createClient();

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAnyRole } from "@/lib/auth/session";
+import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
 
@@ -25,7 +25,7 @@ function validQuality(input:unknown,hasFile:boolean):input is QualityCheck{
 }
 
 export async function approvePaper(paperId:string,reviewNotes:string,quality?:Partial<QualityCheck>):Promise<ActionResult>{
- const profile=await requireAnyRole(["owner","academic_coordinator"]);const supabase=createClient();
+ const profile=await requireRole("academic_coordinator");const supabase=createClient();
  const {data:paper}=await supabase.from("exam_papers").select("id,teacher_id,quality_check,file_path").eq("id",paperId).maybeSingle();if(!paper)return{error:"Paper not found."};
  const hasFile=Boolean(paper.file_path);
  const suppliedQuality=quality??paper.quality_check;
@@ -35,4 +35,4 @@ export async function approvePaper(paperId:string,reviewNotes:string,quality?:Pa
  await markLatestVersion(supabase,paperId,"approved");await supabase.from("alerts").insert({type:"paper_approved",severity:"info",teacher_id:paper.teacher_id,recipient_id:paper.teacher_id,reference_table:"exam_papers",reference_id:paperId,message:"Your exam paper was approved and is ready for the clerk to place for printing."});await logAudit({actorId:profile.user_id,action:"paper_approved",entityType:"exam_papers",entityId:paperId,newData:{review_notes:reviewNotes.trim()||null,quality_check:effectiveQuality}});
  revalidatePath(PAPERS_PATH);revalidatePath(COORDINATOR_PAPERS_PATH);revalidatePath("/clerk/papers");revalidatePath("/teacher/alerts");revalidatePath("/teacher");return{error:null};
 }
-export async function rejectPaper(paperId:string,reviewNotes:string):Promise<ActionResult>{const profile=await requireAnyRole(["owner","academic_coordinator"]);const supabase=createClient();const trimmed=reviewNotes.trim();if(!trimmed)return{error:"Please explain what needs to change before rejecting a paper."};const {data:paper}=await supabase.from("exam_papers").select("id,teacher_id").eq("id",paperId).maybeSingle();if(!paper)return{error:"Paper not found."};const {error}=await supabase.from("exam_papers").update({status:"draft",reviewed_at:new Date().toISOString(),reviewed_by:profile.user_id,review_notes:trimmed}).eq("id",paperId);if(error)return{error:error.message};await markLatestVersion(supabase,paperId,"rejected");await supabase.from("alerts").insert({type:"paper_rejected",severity:"warning",teacher_id:paper.teacher_id,recipient_id:paper.teacher_id,reference_table:"exam_papers",reference_id:paperId,message:`Your exam paper needs changes: ${trimmed}`});await logAudit({actorId:profile.user_id,action:"paper_rejected",entityType:"exam_papers",entityId:paperId,newData:{review_notes:trimmed}});revalidatePath(PAPERS_PATH);revalidatePath(COORDINATOR_PAPERS_PATH);revalidatePath("/clerk/papers");revalidatePath("/teacher/alerts");revalidatePath("/teacher");return{error:null};}
+export async function rejectPaper(paperId:string,reviewNotes:string):Promise<ActionResult>{const profile=await requireRole("academic_coordinator");const supabase=createClient();const trimmed=reviewNotes.trim();if(!trimmed)return{error:"Please explain what needs to change before rejecting a paper."};const {data:paper}=await supabase.from("exam_papers").select("id,teacher_id").eq("id",paperId).maybeSingle();if(!paper)return{error:"Paper not found."};const {error}=await supabase.from("exam_papers").update({status:"draft",reviewed_at:new Date().toISOString(),reviewed_by:profile.user_id,review_notes:trimmed}).eq("id",paperId);if(error)return{error:error.message};await markLatestVersion(supabase,paperId,"rejected");await supabase.from("alerts").insert({type:"paper_rejected",severity:"warning",teacher_id:paper.teacher_id,recipient_id:paper.teacher_id,reference_table:"exam_papers",reference_id:paperId,message:`Your exam paper needs changes: ${trimmed}`});await logAudit({actorId:profile.user_id,action:"paper_rejected",entityType:"exam_papers",entityId:paperId,newData:{review_notes:trimmed}});revalidatePath(PAPERS_PATH);revalidatePath(COORDINATOR_PAPERS_PATH);revalidatePath("/clerk/papers");revalidatePath("/teacher/alerts");revalidatePath("/teacher");return{error:null};}

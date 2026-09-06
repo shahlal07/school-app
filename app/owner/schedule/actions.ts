@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAnyRole } from "@/lib/auth/session";
+import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import type { GeneratedScheduleItem } from "@/lib/scheduling/generate-schedule";
 
@@ -19,17 +19,16 @@ export interface SaveScheduleInput {
 
 /**
  * Inserts a previously-generated (client-side, pure-function) schedule
- * preview into schedule_items. Callable by owner or academic_coordinator -
- * both have can_manage_academics(), which covers schedule_items write at the
- * RLS level. This guard is defense in depth: the calling page is already
- * gated by requireRole("owner") in app/owner/layout.tsx or by
- * requireAnyRole(["owner","academic_coordinator"]) in
- * app/coordinator/layout.tsx, depending on which segment renders it.
+ * preview into schedule_items. Generating/saving a test schedule is
+ * day-to-day academic operations - the academic coordinator's job, not the
+ * owner's (app/owner/schedule/page.tsx is now a read-only mirror of
+ * app/coordinator/schedule/page.tsx, matching syllabus/papers/results/
+ * interventions/calendar/exam-sets).
  */
 export async function saveGeneratedSchedule(
   input: SaveScheduleInput
 ): Promise<ActionResult> {
-  await requireAnyRole(["owner", "academic_coordinator"]);
+  await requireRole("academic_coordinator");
 
   if (input.items.length === 0) {
     return { error: "Nothing to save - generate a preview first." };

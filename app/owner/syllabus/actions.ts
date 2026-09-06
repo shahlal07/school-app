@@ -17,7 +17,7 @@ export async function updateSubject(
   subjectId: string,
   updates: { name?: string; is_active?: boolean }
 ): Promise<ActionResult> {
-  await requireRole("owner");
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const trimmedName = updates.name?.trim();
@@ -42,7 +42,7 @@ export async function updateSubject(
 }
 
 export async function deleteSubject(subjectId: string): Promise<ActionResult> {
-  await requireRole("owner");
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const { error } = await supabase.from("subjects").delete().eq("id", subjectId);
@@ -63,7 +63,7 @@ export async function createChapter(
   subjectId: string,
   input: { name: string; description?: string }
 ): Promise<ActionResult> {
-  await requireRole("owner");
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const name = input.name.trim();
@@ -104,7 +104,7 @@ export async function updateChapter(
   chapterId: string,
   updates: { name?: string; description?: string | null }
 ): Promise<ActionResult> {
-  await requireRole("owner");
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const trimmedName = updates.name?.trim();
@@ -131,7 +131,7 @@ export async function updateChapter(
 }
 
 export async function deleteChapter(chapterId: string): Promise<ActionResult> {
-  await requireRole("owner");
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const { error } = await supabase.from("chapters").delete().eq("id", chapterId);
@@ -148,7 +148,7 @@ export async function reorderChapter(
   chapterId: string,
   direction: "up" | "down"
 ): Promise<ActionResult> {
-  await requireRole("owner");
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const { data: chapter, error: chapterError } = await supabase
@@ -206,7 +206,7 @@ export async function createTopic(
   chapterId: string,
   input: { name: string; description?: string }
 ): Promise<ActionResult> {
-  await requireRole("owner");
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const name = input.name.trim();
@@ -247,7 +247,7 @@ export async function updateTopic(
   topicId: string,
   updates: { name?: string; description?: string | null }
 ): Promise<ActionResult> {
-  await requireRole("owner");
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const trimmedName = updates.name?.trim();
@@ -274,7 +274,7 @@ export async function updateTopic(
 }
 
 export async function deleteTopic(topicId: string): Promise<ActionResult> {
-  await requireRole("owner");
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const { error } = await supabase.from("topics").delete().eq("id", topicId);
@@ -291,7 +291,7 @@ export async function reorderTopic(
   topicId: string,
   direction: "up" | "down"
 ): Promise<ActionResult> {
-  await requireRole("owner");
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const { data: topic, error: topicError } = await supabase

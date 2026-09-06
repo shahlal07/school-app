@@ -5,6 +5,15 @@ import { ScheduleGenerator } from "@/components/examination/schedule-generator";
 import type { ChapterWithTopics } from "@/lib/scheduling/generate-schedule";
 import type { ScheduleItemRow } from "@/components/examination/schedule-list";
 
+/**
+ * Read-only mirror of app/coordinator/schedule/page.tsx (same query
+ * pattern). Generating/saving a test schedule is day-to-day academic
+ * operations - the academic coordinator's job, not the owner's. This
+ * renders <ScheduleGenerator readOnly /> so no Generate/Preview/Save
+ * control is shown; saveGeneratedSchedule() (app/owner/schedule/actions.ts)
+ * is guarded with requireRole("academic_coordinator"), so there's no path
+ * by which an owner could act on it even if the form were shown.
+ */
 export default async function SchedulePage() {
   const supabase = createClient();
 
@@ -80,10 +89,10 @@ export default async function SchedulePage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Schedule generator</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">Schedule</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Generate a test schedule from a subject&apos;s syllabus and view what&apos;s already
-        scheduled.
+        What&apos;s already scheduled for each subject. Generating a schedule happens on the
+        coordinator side.
       </p>
 
       <div className="mt-5">
@@ -94,6 +103,7 @@ export default async function SchedulePage() {
           scheduleItemsBySubject={scheduleItemsBySubject}
           defaultTestDaysOfWeek={defaultTestDaysOfWeek}
           defaultHolidays={defaultHolidays}
+          readOnly
         />
       </div>
     </main>

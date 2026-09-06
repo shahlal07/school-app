@@ -1,18 +1,21 @@
 import type { Chapter, Class, Subject, Topic } from "@/types/examination";
+import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { SyllabusManager } from "@/components/examination/syllabus-manager";
 import { classOrderIndex } from "@/components/examination/constants";
 
 /**
- * Read-only mirror of app/coordinator/syllabus/page.tsx (same query
- * pattern). Editing chapters/topics/subjects is day-to-day academic
- * content work - the academic coordinator's job, not the owner's - so this
- * renders SyllabusManager with readOnly=true. Every syllabus action
- * (app/owner/syllabus/actions.ts) is guarded with
- * requireRole("academic_coordinator"), so there's no path by which an
- * owner could act on these even if a control were shown.
+ * Full read/write syllabus manager, moved here from app/owner/syllabus -
+ * chapter/topic/subject editing is day-to-day academic content work, which
+ * belongs to the academic coordinator, not the owner (who now gets a
+ * read-only mirror at /owner/syllabus, matching schedule/papers/results/
+ * interventions/calendar/exam-sets). The underlying actions
+ * (app/owner/syllabus/actions.ts, kept at that path since it's imported
+ * directly by shared components like subject-card.tsx/chapter-panel.tsx/
+ * topic-panel.tsx) are now guarded with requireRole("academic_coordinator").
  */
-export default async function SyllabusPage() {
+export default async function CoordinatorSyllabusPage() {
+  await requireRole("academic_coordinator");
   const supabase = createClient();
 
   const [classesRes, subjectsRes, chaptersRes, topicsRes] = await Promise.all([
@@ -47,9 +50,9 @@ export default async function SyllabusPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Syllabus</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">Syllabus manager</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Subjects, chapters, and topics for every class. Editing happens on the coordinator side.
+        Manage subjects, chapters, and topics for every class.
       </p>
 
       <div className="mt-5">
@@ -58,7 +61,6 @@ export default async function SyllabusPage() {
           subjectsByClass={subjectsByClass}
           chaptersBySubject={chaptersBySubject}
           topicsByChapter={topicsByChapter}
-          readOnly
         />
       </div>
     </main>

@@ -5,6 +5,14 @@ import type { ScheduleItemRow } from "@/components/examination/schedule-list";
 import type { ExamPaper, ExamPaperStatus, PaperQueueRow } from "@/components/examination/paper-types";
 import { PaperReviewQueue } from "@/components/examination/paper-review-queue";
 
+/**
+ * Read-only mirror of app/coordinator/papers - approving/rejecting exam
+ * papers is day-to-day academic operations, the coordinator's job, not the
+ * owner's. approvePaper()/rejectPaper() (app/owner/papers/actions.ts, kept
+ * at this path since coordinator/papers reuses it directly) are guarded
+ * with requireRole("academic_coordinator"), so there's no path by which an
+ * owner could act on these even if the Review button were shown.
+ */
 export default async function PapersPage() {
   const supabase = createClient();
 
@@ -64,9 +72,10 @@ export default async function PapersPage() {
 
   return (
     <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">Paper review</h1>
+      <h1 className="text-xl font-semibold text-neutral-900">Papers</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Review exam papers teachers have submitted, and approve or send them back for revision.
+        Exam papers teachers have submitted. Approving or rejecting a paper happens on the
+        coordinator side.
       </p>
 
       <div className="mt-5">
@@ -75,6 +84,7 @@ export default async function PapersPage() {
           inProgress={inProgress}
           completed={completed}
           notStarted={notStarted}
+          readOnly
         />
       </div>
     </main>

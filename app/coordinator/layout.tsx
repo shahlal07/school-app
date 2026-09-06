@@ -33,6 +33,7 @@ export default async function CoordinatorLayout({
       sidebarItems={[
         { label: "Dashboard", href: "/coordinator" },
         { label: "Schedule", href: "/coordinator/schedule" },
+        { label: "Syllabus", href: "/coordinator/syllabus" },
         { label: "Calendar", href: "/coordinator/calendar" },
         { label: "Exam Sets", href: "/coordinator/exam-sets" },
         { label: "Papers", href: "/coordinator/papers" },

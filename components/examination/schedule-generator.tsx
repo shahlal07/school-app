@@ -32,6 +32,8 @@ export interface ScheduleGeneratorProps {
   defaultTestDaysOfWeek?: number[];
   /** Holiday dates (ISO yyyy-mm-dd) from calendar_overrides, pre-filled so they don't need re-entering here. */
   defaultHolidays?: string[];
+  /** When true, hides the generate/save form entirely - only the read-only "already scheduled" list is shown. */
+  readOnly?: boolean;
 }
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -306,7 +308,8 @@ function ScheduleGeneratorInner({
   chaptersWithTopicsBySubject,
   scheduleItemsBySubject,
   defaultTestDaysOfWeek = [1, 2, 3, 4, 5],
-  defaultHolidays = []
+  defaultHolidays = [],
+  readOnly = false
 }: ScheduleGeneratorProps) {
   const [selectedClassId, setSelectedClassId] = useState<string | undefined>(classes[0]?.id);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | undefined>(undefined);
@@ -415,7 +418,14 @@ function ScheduleGeneratorInner({
             </Card>
           )}
 
-          {selectedChapters.length === 0 ? (
+          {readOnly ? (
+            selectedExistingItems.length === 0 && (
+              <EmptyState
+                title="Nothing scheduled yet"
+                description={`No tests are scheduled for ${selectedSubject.name} yet. Generating a schedule happens on the coordinator side.`}
+              />
+            )
+          ) : selectedChapters.length === 0 ? (
             <EmptyState
               title="No syllabus yet"
               description={`${selectedSubject.name} has no chapters or topics set up, so a schedule can't be generated for it yet. Add chapters and topics in the syllabus manager first.`}

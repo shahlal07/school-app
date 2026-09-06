@@ -6,10 +6,10 @@ import type { ExamPaper, ExamPaperStatus, PaperQueueRow } from "@/components/exa
 import { PaperReviewQueue } from "@/components/examination/paper-review-queue";
 
 /**
- * Read-only mirror of app/owner/papers/page.tsx (same query pattern),
+ * Read-only mirror of app/coordinator/papers/page.tsx (same query pattern),
  * rendered with PaperReviewQueue's readOnly=true. Approve/reject is
- * owner-only not just at RLS but via a Postgres trigger on exam_papers
- * (see app/owner/papers/actions.ts), so there is no path by which a
+ * coordinator-only (app/owner/papers/actions.ts, guarded with
+ * requireRole("academic_coordinator")), so there is no path by which a
  * principal could act on these even if the Review button were shown.
  */
 export default async function PrincipalPapersPage() {
@@ -70,8 +70,8 @@ export default async function PrincipalPapersPage() {
     <main className="p-4 sm:p-6">
       <h1 className="text-xl font-semibold text-neutral-900">Papers</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Exam papers teachers have submitted. Approving or rejecting a paper happens on the owner
-        side.
+        Exam papers teachers have submitted. Approving or rejecting a paper happens on the
+        coordinator side.
       </p>
 
       <div className="mt-5">
