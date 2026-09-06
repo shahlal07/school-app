@@ -4,19 +4,26 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/audit";
 
 type ActionResult = { error: string | null };
 
 const SETTINGS_PATH = "/owner/settings";
 
 export async function updatePassPercentage(value: number): Promise<ActionResult> {
-  await requireRole("owner");
+  const profile = await requireRole("owner");
 
   if (!Number.isFinite(value) || value < 1 || value > 100) {
     return { error: "Pass percentage must be a number between 1 and 100." };
   }
 
   const supabase = createClient();
+  const { data: existing } = await supabase
+    .from("school_settings")
+    .select("id, value")
+    .eq("key", "pass_percentage")
+    .maybeSingle();
+
   const { error } = await supabase
     .from("school_settings")
     .update({ value: String(value), updated_at: new Date().toISOString() })
@@ -24,6 +31,17 @@ export async function updatePassPercentage(value: number): Promise<ActionResult>
 
   if (error) {
     return { error: error.message };
+  }
+
+  if (existing) {
+    await logAudit({
+      actorId: profile.user_id,
+      action: "pass_percentage_updated",
+      entityType: "school_settings",
+      entityId: existing.id,
+      oldData: { value: existing.value },
+      newData: { value: String(value) }
+    });
   }
 
   revalidatePath(SETTINGS_PATH);

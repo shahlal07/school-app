@@ -128,7 +128,9 @@ Commits: `90ac72c`
 3. `auth_rls_initplan`/`multiple_permissive_policies` performance advisories (see above) - real, deliberately deferred.
 4. Leaked-password-protection toggle - owner action in the Supabase dashboard.
 5. PG-8 and non-core-9th/10th-subject chapter content - deliberately left empty rather than fabricated; a real content-authoring pass, not a coding task.
-6. No audit_logs are actually being written yet despite the table/RLS existing since Phase 1 - no server action calls `audit_logs.insert()` anywhere. Worth wiring into the more sensitive actions (invite/deactivate teacher, approve/reject paper, resolve alert) in a future pass.
+6. ~~No audit_logs are actually being written yet~~ **Closed this session**: added `lib/audit.ts` (fire-and-forget helper, failures logged not thrown - an audit write must never block the real action) and wired it into the 6 most sensitive actions: `inviteTeacher`, `setTeacherActive`, `approvePaper`, `rejectPaper`, `resolveAlert`, `updatePassPercentage`. **Caught a real bug during this pass**: `updatePassPercentage`'s first draft passed the string `"pass_percentage"` as `entity_id`, but that column is typed `uuid` - would have silently failed every time (the helper swallows errors by design, so this would never have surfaced as a crash, just silently-missing audit rows). Fixed to use the setting row's actual `id`, then live-tested the exact insert shape via SQL to confirm it now succeeds; test row cleaned up.
+
+Remaining honest gaps: `SUPABASE_SERVICE_ROLE_KEY` not set, no second real user yet, the two deferred RLS performance advisories, the leaked-password-protection toggle, and PG-8/non-core-subject chapter content (deliberately deferred, not fabricated).
 
 Commit: `eedc9dd` (schema + seed + type fixes)
 

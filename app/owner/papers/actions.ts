@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/audit";
 
 type ActionResult = { error: string | null };
 
@@ -32,6 +33,14 @@ export async function approvePaper(paperId: string, reviewNotes: string): Promis
   if (error) {
     return { error: error.message };
   }
+
+  await logAudit({
+    actorId: profile.user_id,
+    action: "paper_approved",
+    entityType: "exam_papers",
+    entityId: paperId,
+    newData: { review_notes: reviewNotes.trim() || null }
+  });
 
   revalidatePath(PAPERS_PATH);
   return { error: null };
@@ -63,6 +72,14 @@ export async function rejectPaper(paperId: string, reviewNotes: string): Promise
   if (error) {
     return { error: error.message };
   }
+
+  await logAudit({
+    actorId: profile.user_id,
+    action: "paper_rejected",
+    entityType: "exam_papers",
+    entityId: paperId,
+    newData: { review_notes: trimmedNotes }
+  });
 
   revalidatePath(PAPERS_PATH);
   return { error: null };

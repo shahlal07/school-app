@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/audit";
 
 type ActionResult = { error: string | null };
 
@@ -32,6 +33,13 @@ export async function resolveAlert(alertId: string): Promise<ActionResult> {
   if (error) {
     return { error: error.message };
   }
+
+  await logAudit({
+    actorId: profile.user_id,
+    action: "alert_resolved",
+    entityType: "alerts",
+    entityId: alertId
+  });
 
   revalidatePath(ALERTS_PATH);
   return { error: null };

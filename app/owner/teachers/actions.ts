@@ -5,12 +5,13 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { logAudit } from "@/lib/audit";
 
 export async function inviteTeacher(
   fullName: string,
   email: string
 ): Promise<{ error: string | null }> {
-  await requireRole("owner");
+  const owner = await requireRole("owner");
 
   const trimmedName = fullName.trim();
   const trimmedEmail = email.trim();
@@ -40,6 +41,14 @@ export async function inviteTeacher(
     return { error: profileError.message };
   }
 
+  await logAudit({
+    actorId: owner.user_id,
+    action: "teacher_invited",
+    entityType: "profiles",
+    entityId: data.user.id,
+    newData: { full_name: trimmedName, email: trimmedEmail }
+  });
+
   revalidatePath("/owner/teachers");
   return { error: null };
 }
@@ -48,7 +57,7 @@ export async function setTeacherActive(
   userId: string,
   isActive: boolean
 ): Promise<{ error: string | null }> {
-  await requireRole("owner");
+  const owner = await requireRole("owner");
 
   const supabase = createClient();
   const { error } = await supabase
@@ -60,6 +69,14 @@ export async function setTeacherActive(
   if (error) {
     return { error: error.message };
   }
+
+  await logAudit({
+    actorId: owner.user_id,
+    action: isActive ? "teacher_reactivated" : "teacher_deactivated",
+    entityType: "profiles",
+    entityId: userId,
+    newData: { is_active: isActive }
+  });
 
   revalidatePath("/owner/teachers");
   return { error: null };
