@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { usernameToSyntheticEmail } from "@/lib/auth/username";
+import { ROLE_HOME_PATH } from "@/lib/auth/roles";
 
 /**
  * Accepts either a real email (owner accounts) or a username (most teacher
@@ -40,7 +41,7 @@ export async function signIn(
     return { error: "This account is not active. Contact the school owner." };
   }
 
-  redirect(profile.role === "owner" ? "/owner" : "/teacher");
+  redirect(ROLE_HOME_PATH[profile.role as keyof typeof ROLE_HOME_PATH] ?? "/teacher");
 }
 
 export async function signOut(): Promise<void> {
