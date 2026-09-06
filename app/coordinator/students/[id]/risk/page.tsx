@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/auth/session";
+import { requireAnyRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { StudentRiskProfile, type StudentSubjectRisk, type StudentTestRow } from "@/components/examination/student-risk-profile";
 
 export default async function StudentRiskPage({params}:{params:{id:string}}){
- await requireRole('academic_coordinator'); const supabase=createClient();
+ await requireAnyRole(["owner","academic_coordinator"]); const supabase=createClient();
  const [{data:student},{data:classes},{data:schedules},{data:subjects},{data:results},{data:topics},{data:chapters}]=await Promise.all([
   supabase.from('students').select('id,name,roll_no,class_id').eq('id',params.id).maybeSingle(),supabase.from('classes').select('id,name'),supabase.from('schedule_items').select('id,title,subject_id,topic_id,scheduled_date,status'),supabase.from('subjects').select('id,name'),supabase.from('test_results').select('schedule_item_id,marks_obtained,total_marks,is_absent,is_pass').eq('student_id',params.id),supabase.from('topics').select('id,name,chapter_id'),supabase.from('chapters').select('id,subject_id')
  ]);

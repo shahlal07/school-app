@@ -1,11 +1,11 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireAnyRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { createIntervention } from "./actions";
 import { InterventionStatusForm } from "@/components/examination/intervention-status-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function CoordinatorInterventionsPage(){
-  await requireRole("academic_coordinator");
+  await requireAnyRole(["owner","academic_coordinator"]);
   const supabase=createClient();
   const [studentsRes,subjectsRes,teachersRes,interventionsRes]=await Promise.all([
     supabase.from("students").select("id,name,roll_no,class_id").eq("is_active",true).order("name"),

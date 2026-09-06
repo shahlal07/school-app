@@ -1,10 +1,10 @@
-import { requireRole } from "@/lib/auth/session";
+import { requireAnyRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { finalizeResult, rejectResult } from "./actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function CoordinatorResultsPage(){
-  await requireRole("academic_coordinator"); const supabase=createClient();
+  await requireAnyRole(["owner","academic_coordinator"]); const supabase=createClient();
   const [submissionsRes,schedulesRes,teachersRes]=await Promise.all([
     supabase.from('result_submissions').select('id,schedule_item_id,teacher_id,status,submitted_at,review_notes').order('created_at',{ascending:false}),
     supabase.from('schedule_items').select('id,title,scheduled_date,class_id,subject_id'),
