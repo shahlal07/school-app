@@ -2,12 +2,6 @@ import type { ScheduleItemRow } from "@/components/examination/schedule-list";
 import type { ScheduleTestType } from "@/lib/scheduling/generate-schedule";
 import type { BadgeProps } from "@/components/ui/badge";
 
-/**
- * Mirrors the `exam_papers.status` check constraint exactly. `not_started`
- * additionally doubles as a virtual status for `schedule_items` rows that
- * have no `exam_papers` row at all yet (a paper record isn't created until a
- * teacher first touches it) - see `PaperQueueRow.status` below.
- */
 export type ExamPaperStatus =
   | "not_started"
   | "draft"
@@ -29,13 +23,11 @@ export interface ExamPaper {
   reviewed_at: string | null;
   reviewed_by: string | null;
   review_notes: string | null;
+  current_version: number;
   created_at: string;
   updated_at: string;
 }
 
-/** One row in the owner's paper review queue - a schedule item joined with
- * its (possibly absent) exam paper, class/subject names, and the submitting
- * teacher's name. */
 export interface PaperQueueRow {
   scheduleItem: ScheduleItemRow;
   paper: ExamPaper | null;
@@ -57,10 +49,7 @@ export const PAPER_STATUS_LABEL: Record<ExamPaperStatus, string> = {
   completed: "Completed"
 };
 
-export const PAPER_STATUS_BADGE_VARIANT: Record<
-  ExamPaperStatus,
-  NonNullable<BadgeProps["variant"]>
-> = {
+export const PAPER_STATUS_BADGE_VARIANT: Record<ExamPaperStatus, NonNullable<BadgeProps["variant"]>> = {
   not_started: "neutral",
   draft: "neutral",
   submitted: "warning",
