@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Class, Subject } from "@/types/examination";
 import { requireAnyRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -154,9 +155,12 @@ export default async function CoordinatorExamSetsPage() {
                 ) : (
                   <div className="rounded-xl border border-neutral-200 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-neutral-900">
-                        Set #{latestSet.set_number}
-                      </p>
+                      <Link
+                        href={`/coordinator/exam-sets/${latestSet.id}`}
+                        className="text-sm font-semibold text-neutral-900 hover:underline"
+                      >
+                        Set #{latestSet.set_number} · View report
+                      </Link>
                       <Badge variant={STATUS_VARIANT[latestSet.status]}>
                         {latestSet.status.replace(/_/g, " ")}
                       </Badge>
