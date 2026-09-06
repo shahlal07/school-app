@@ -6,13 +6,29 @@ import { createClient } from "@/lib/supabase/server";
 
 type Result = { error: string | null };
 
-export async function queueExamPaper(examPaperId: string): Promise<Result> {
+export interface PrintOptions {
+  copies: number;
+  colorMode: "bw" | "color";
+  duplex: boolean;
+  pageCount: number | null;
+  priority: "low" | "normal" | "high" | "urgent";
+}
+
+export async function queueExamPaper(examPaperId: string, options: PrintOptions): Promise<Result> {
   await requireRole("clerk");
   const supabase = createClient();
-  const { error } = await supabase.rpc("queue_exam_paper_for_print", { p_exam_paper_id: examPaperId });
+  const { error } = await supabase.rpc("queue_exam_paper_for_print", {
+    p_exam_paper_id: examPaperId,
+    p_copies: options.copies,
+    p_color_mode: options.colorMode,
+    p_duplex: options.duplex,
+    p_page_count: options.pageCount,
+    p_priority: options.priority
+  });
   if (error) return { error: error.message };
   revalidatePath("/clerk/papers");
   revalidatePath("/teacher");
+  revalidatePath("/teacher/exams");
   revalidatePath("/coordinator/papers");
   return { error: null };
 }
@@ -24,12 +40,16 @@ export async function markExamPaperPrinted(jobId: string): Promise<Result> {
   if (error) return { error: error.message };
   revalidatePath("/clerk/papers");
   revalidatePath("/teacher/alerts");
+  revalidatePath("/teacher");
+  revalidatePath("/teacher/exams");
   revalidatePath("/coordinator/alerts");
+  revalidatePath("/coordinator/papers");
   return { error: null };
 }
 
 export async function getClerkPaperUrl(path: string): Promise<{ url: string | null; error: string | null }> {
   await requireRole("clerk");
+  if (!path) return { url: null, error: "Paper file is missing." };
   const supabase = createClient();
   const { data, error } = await supabase.storage.from("exam-papers").createSignedUrl(path, 300);
   return error ? { url: null, error: error.message } : { url: data.signedUrl, error: null };
