@@ -50,3 +50,16 @@ export interface AuditLog {
   new_data: Record<string, unknown> | null;
   created_at: string;
 }
+
+export interface Message {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  /** Generated column - order-independent pairing of sender/recipient user_ids. Read-only. */
+  thread_key: string;
+  /** Shared across every recipient copy of one owner broadcast action. */
+  broadcast_id: string | null;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+}

@@ -95,7 +95,19 @@ Commits: `4714de8`
 - [x] **Fully live-tested**, not just written: created a real overdue schedule_item + teacher_subjects assignment, ran the scan, confirmed both `paper_missing` and `test_overdue` alerts fired with correct severity/message text. Re-ran the scan and confirmed no duplicate rows (dedup works). Marked the item `completed` and re-ran: `test_overdue` auto-resolved, a new `results_missing` alert correctly appeared (paper still missing stayed open, unaffected - exactly the intended independent-condition behavior). All test data (schedule_item, teacher_subjects row, alerts) cleaned up afterward - tables are back to genuinely empty.
 - [x] Security advisor re-run: same 2 accepted/flagged items, no new findings.
 
-Commits: pending (messages + alerts schema, to be committed now before continuing further UI work)
+Commit: `12b6170`
+
+## Phase 4/5/6/8 UI batch — 6 more parallel agents
+- [x] `/teacher/exams/[id]`: paper submission (draft/submit, upsert-on-first-touch) + results roster (bulk save, never sets `is_pass` itself). Caught and correctly handled a real schema subtlety on its own: `teacher_id`/`entered_by` reference `profiles(user_id)`, not `profiles.id` - verified by reading the actual migrations rather than assuming.
+- [x] `/owner/papers`: review queue (Tabs by status bucket), approve/reject with `reviewed_by` always derived server-side from the session, reject requires non-empty notes.
+- [x] `/owner/messages` + `/teacher/messages`: full chat UI (shared `ChatThread` bubble component, sender-aligned, `max-w-[80%] break-words`), broadcast-to-all-teachers fan-out with one shared `broadcast_id`, unread badges, read-marking on thread open, mobile two-pane-collapses-to-one-pane-with-back-button layout on the owner side.
+- [x] `/owner/alerts` + `/teacher/alerts`: inbox UI for the already-live-tested alert engine, Tabs (open/resolved) on the owner side with a resolve action, plain read-only sections on the teacher side, positively-framed empty states ("No compliance issues right now" / "You're all caught up").
+- [x] `/owner/performance`: real aggregation from `test_results` (overall/per-class/per-subject pass rates, weakest-topics with a minimum sample size of 3). Correctly renders a single honest `EmptyState` right now since `test_results` is genuinely empty - explicitly verified this is what actually renders, not a stub - while the real aggregation logic underneath is fully written and ready for when data exists.
+- All reviewed file-by-file. One integration gap I fixed myself afterward (not any agent's fault - it was inherently outside every agent's assigned scope): `/owner/schedule` and `/owner/papers` weren't linked from `owner-shell.tsx`'s sidebar yet, and `teacher-schedule-card.tsx` didn't link to its own detail page - both fixed.
+
+**Full consolidated build gate** (typecheck/lint/build, run once after all 6 agents had finished and my integration fixes were in): all green. **18 routes total**, all correctly dynamic.
+
+Commits: pending (this UI batch + my integration fixes, to be committed now)
 
 Commit: `eedc9dd` (schema + seed + type fixes)
 

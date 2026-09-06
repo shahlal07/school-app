@@ -16,8 +16,9 @@ interface SidebarNavItem {
 
 const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   { label: "Dashboard", href: "/owner" },
-  { label: "Examinations", href: "/owner/examinations" },
   { label: "Syllabus", href: "/owner/syllabus" },
+  { label: "Schedule", href: "/owner/schedule" },
+  { label: "Papers", href: "/owner/papers" },
   { label: "Teachers", href: "/owner/teachers" },
   { label: "Students", href: "/owner/students" },
   { label: "Results", href: "/owner/results" },

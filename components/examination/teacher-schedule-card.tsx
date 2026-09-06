@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { ScheduleTestType } from "@/lib/scheduling/generate-schedule";
 import type { ScheduleItemStatus } from "@/components/examination/schedule-list";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,24 +75,26 @@ export function TeacherScheduleCard({ item }: { item: TeacherScheduleItem }) {
   const subjectAndClass = [item.subjectName, item.className].filter(Boolean).join(" - ");
 
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-neutral-900">{item.title}</p>
-            {subjectAndClass && (
-              <p className="mt-0.5 truncate text-xs text-neutral-500">{subjectAndClass}</p>
-            )}
+    <Link href={`/teacher/exams/${item.id}`} className="block">
+      <Card className="transition-shadow hover:shadow-md">
+        <CardContent className="flex flex-col gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-neutral-900">{item.title}</p>
+              {subjectAndClass && (
+                <p className="mt-0.5 truncate text-xs text-neutral-500">{subjectAndClass}</p>
+              )}
+            </div>
+            <span className="shrink-0 whitespace-nowrap text-xs font-medium text-neutral-500">
+              {formatScheduleDate(item.scheduled_date)}
+            </span>
           </div>
-          <span className="shrink-0 whitespace-nowrap text-xs font-medium text-neutral-500">
-            {formatScheduleDate(item.scheduled_date)}
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="neutral">{TEST_TYPE_LABEL[item.test_type]}</Badge>
-          <Badge variant={STATUS_VARIANT[item.status]}>{STATUS_LABEL[item.status]}</Badge>
-        </div>
-      </CardContent>
-    </Card>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="neutral">{TEST_TYPE_LABEL[item.test_type]}</Badge>
+            <Badge variant={STATUS_VARIANT[item.status]}>{STATUS_LABEL[item.status]}</Badge>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
