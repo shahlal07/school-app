@@ -2,6 +2,7 @@ import { requireAnyRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { createIntervention } from "./actions";
 import { InterventionStatusForm } from "@/components/examination/intervention-status-form";
+import { AttendanceInterventionRecommendations } from "./attendance-recommendations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function CoordinatorInterventionsPage(){
@@ -25,6 +26,7 @@ export default async function CoordinatorInterventionsPage(){
 
   return <main className="flex flex-col gap-5 p-4 sm:p-6">
     <div><h1 className="text-xl font-semibold text-neutral-900">Intervention tracking</h1><p className="mt-1 text-sm text-neutral-500">Turn an academic warning into an assigned action, follow-up date, and measurable outcome.</p></div>
+    <AttendanceInterventionRecommendations canManage={canManage} />
     {canManage&&<Card><CardHeader><CardTitle>Create intervention</CardTitle></CardHeader><CardContent><form action={submitIntervention} className="grid gap-3 sm:grid-cols-2">
       <label className="text-sm">Student<select name="studentId" required className="mt-1 w-full rounded-xl border border-neutral-200 p-2">{students.map(s=><option key={s.id} value={s.id}>{s.name} — #{s.roll_no}</option>)}</select></label>
       <label className="text-sm">Subject<select name="subjectId" className="mt-1 w-full rounded-xl border border-neutral-200 p-2"><option value="">General</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
