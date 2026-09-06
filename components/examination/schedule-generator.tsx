@@ -28,6 +28,10 @@ export interface ScheduleGeneratorProps {
   subjectsByClass: Record<string, Subject[]>;
   chaptersWithTopicsBySubject: Record<string, ChapterWithTopics[]>;
   scheduleItemsBySubject: Record<string, ScheduleItemRow[]>;
+  /** Days of week (0=Sun..6=Sat) eligible by default, from the real school calendar's weekend setting. */
+  defaultTestDaysOfWeek?: number[];
+  /** Holiday dates (ISO yyyy-mm-dd) from calendar_overrides, pre-filled so they don't need re-entering here. */
+  defaultHolidays?: string[];
 }
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -41,16 +45,25 @@ interface GeneratorFormProps {
   classId: string;
   chapters: ChapterWithTopics[];
   existingItems: ScheduleItemRow[];
+  defaultTestDaysOfWeek: number[];
+  defaultHolidays: string[];
 }
 
-function GeneratorForm({ subject, classId, chapters, existingItems }: GeneratorFormProps) {
+function GeneratorForm({
+  subject,
+  classId,
+  chapters,
+  existingItems,
+  defaultTestDaysOfWeek,
+  defaultHolidays
+}: GeneratorFormProps) {
   const router = useRouter();
   const { toast } = useToast();
 
   const [startDate, setStartDate] = useState(todayISO());
-  const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
+  const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set(defaultTestDaysOfWeek));
   const [holidayDraft, setHolidayDraft] = useState("");
-  const [holidays, setHolidays] = useState<string[]>([]);
+  const [holidays, setHolidays] = useState<string[]>(defaultHolidays);
   const [includeChapterTest, setIncludeChapterTest] = useState(true);
   const [preview, setPreview] = useState<GeneratedScheduleItem[] | null>(null);
   const [confirmingSave, setConfirmingSave] = useState(false);
@@ -176,6 +189,10 @@ function GeneratorForm({ subject, classId, chapters, existingItems }: GeneratorF
 
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-neutral-700">Holidays / skip dates</span>
+          <p className="text-xs text-neutral-500">
+            Pre-filled from the school calendar (Coordinator → Calendar). Add or remove for this
+            run only - it won&apos;t change the calendar itself.
+          </p>
           <div className="flex flex-wrap items-end gap-2">
             <input
               type="date"
@@ -287,7 +304,9 @@ function ScheduleGeneratorInner({
   classes,
   subjectsByClass,
   chaptersWithTopicsBySubject,
-  scheduleItemsBySubject
+  scheduleItemsBySubject,
+  defaultTestDaysOfWeek = [1, 2, 3, 4, 5],
+  defaultHolidays = []
 }: ScheduleGeneratorProps) {
   const [selectedClassId, setSelectedClassId] = useState<string | undefined>(classes[0]?.id);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | undefined>(undefined);
@@ -408,6 +427,8 @@ function ScheduleGeneratorInner({
               classId={selectedSubject.class_id}
               chapters={selectedChapters}
               existingItems={selectedExistingItems}
+              defaultTestDaysOfWeek={defaultTestDaysOfWeek}
+              defaultHolidays={defaultHolidays}
             />
           )}
         </div>

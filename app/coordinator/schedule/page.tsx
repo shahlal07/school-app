@@ -18,13 +18,29 @@ import type { ScheduleItemRow } from "@/components/examination/schedule-list";
 export default async function CoordinatorSchedulePage() {
   const supabase = createClient();
 
-  const [classesRes, subjectsRes, chaptersRes, topicsRes, scheduleItemsRes] = await Promise.all([
-    supabase.from("classes").select("*"),
-    supabase.from("subjects").select("*").order("name", { ascending: true }),
-    supabase.from("chapters").select("*").order("order_index", { ascending: true }),
-    supabase.from("topics").select("*").order("order_index", { ascending: true }),
-    supabase.from("schedule_items").select("*").order("scheduled_date", { ascending: true })
-  ]);
+  const [classesRes, subjectsRes, chaptersRes, topicsRes, scheduleItemsRes, weekendSettingRes, holidaysRes] =
+    await Promise.all([
+      supabase.from("classes").select("*"),
+      supabase.from("subjects").select("*").order("name", { ascending: true }),
+      supabase.from("chapters").select("*").order("order_index", { ascending: true }),
+      supabase.from("topics").select("*").order("order_index", { ascending: true }),
+      supabase.from("schedule_items").select("*").order("scheduled_date", { ascending: true }),
+      supabase.from("school_settings").select("value").eq("key", "weekend_days").maybeSingle(),
+      supabase.from("calendar_overrides").select("date").eq("day_status", "holiday")
+    ]);
+
+  // The calendar system (Phase A of the exam-set model, /coordinator/calendar)
+  // is the source of truth for weekends/holidays - default this older
+  // per-subject generator's day-of-week and holiday-date pickers from it so
+  // a coordinator doesn't have to re-enter every holiday in two places. The
+  // coordinator can still add/remove for this specific run; these are only
+  // starting values.
+  const weekendDaysSetting = (weekendSettingRes.data?.value as string | undefined) ?? "0,6";
+  const weekendDays = new Set(
+    weekendDaysSetting.split(",").map((d) => Number(d.trim())).filter((d) => !Number.isNaN(d))
+  );
+  const defaultTestDaysOfWeek = [0, 1, 2, 3, 4, 5, 6].filter((d) => !weekendDays.has(d));
+  const defaultHolidays = ((holidaysRes.data as { date: string }[] | null) ?? []).map((h) => h.date);
 
   const classes = ((classesRes.data as Class[] | null) ?? [])
     .slice()
@@ -86,6 +102,8 @@ export default async function CoordinatorSchedulePage() {
           subjectsByClass={subjectsByClass}
           chaptersWithTopicsBySubject={chaptersWithTopicsBySubject}
           scheduleItemsBySubject={scheduleItemsBySubject}
+          defaultTestDaysOfWeek={defaultTestDaysOfWeek}
+          defaultHolidays={defaultHolidays}
         />
       </div>
     </main>
