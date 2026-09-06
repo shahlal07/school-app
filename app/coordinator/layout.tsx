@@ -34,6 +34,7 @@ export default async function CoordinatorLayout({
         { label: "Dashboard", href: "/coordinator" },
         { label: "Schedule", href: "/coordinator/schedule" },
         { label: "Calendar", href: "/coordinator/calendar" },
+        { label: "Exam Sets", href: "/coordinator/exam-sets" },
         { label: "Papers", href: "/coordinator/papers" },
         { label: "Performance", href: "/coordinator/performance" },
         { label: "Alerts", href: "/coordinator/alerts" },

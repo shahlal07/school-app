@@ -21,8 +21,12 @@ export async function reviewResultSubmission(id:string,status:"reviewed"|"finali
   if(status==='finalized'){
     const {error:scheduleError}=await supabase.from('schedule_items').update({status:'completed'}).eq('id',submission.schedule_item_id);
     if(scheduleError)return{error:scheduleError.message};
+    // If this schedule item is part of an exam set (continuous exam-set
+    // model), this may be the set's last remaining subject - check whether
+    // the whole set just completed.
+    await supabase.rpc('check_and_complete_exam_set',{p_schedule_item_id:submission.schedule_item_id});
   }
-  revalidatePath('/coordinator/results'); revalidatePath('/coordinator/academic-health'); revalidatePath('/principal/results'); revalidatePath('/owner/results');
+  revalidatePath('/coordinator/results'); revalidatePath('/coordinator/academic-health'); revalidatePath('/principal/results'); revalidatePath('/owner/results'); revalidatePath('/coordinator/schedule'); revalidatePath('/owner/schedule');
   return{error:null};
 }
 
