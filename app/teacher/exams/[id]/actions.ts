@@ -102,10 +102,19 @@ export async function submitExamPaperFile(scheduleItemId: string, content: strin
   const profile = await requireRole("teacher");
   const supabase = createClient();
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { error: "Choose a PDF or Word document." };
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a PDF, Word document, or a photo of the paper." };
   if (file.size > 15 * 1024 * 1024) return { error: "Paper must be 15 MB or smaller." };
-  const allowed = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
-  if (!allowed.includes(file.type)) return { error: "Upload a PDF or Word document." };
+  const allowed = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/jpeg",
+    "image/png",
+    "image/heic",
+    "image/heif",
+    "image/webp"
+  ];
+  if (!allowed.includes(file.type)) return { error: "Upload a PDF, Word document, or a photo (JPEG/PNG/HEIC/WEBP)." };
   const { data: schedule } = await supabase.from("schedule_items").select("id,subject_id").eq("id", scheduleItemId).maybeSingle();
   if (!schedule) return { error: "Exam not found." };
   const { data: assignment } = await supabase.from("teacher_subjects").select("id").eq("teacher_id", profile.user_id).eq("subject_id", schedule.subject_id).maybeSingle();

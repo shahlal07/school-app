@@ -84,13 +84,21 @@ function ExamPaperEditorInner({ scheduleItemId, status, initialContent, initialF
           />
           <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-3">
             <label className="text-sm font-medium text-neutral-700">
-              Paper file <span className="font-normal text-neutral-500">(PDF or Word, max 15 MB)</span>
+              Paper file{" "}
+              <span className="font-normal text-neutral-500">
+                (PDF, Word, or a photo of the paper - max 15 MB)
+              </span>
             </label>
             <input
               ref={fileRef}
               onChange={(e) => setFileSelected(Boolean(e.target.files?.length))}
               type="file"
-              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.heic,.heif,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/heic,image/heif,image/webp"
+              // capture="environment" opens the rear camera directly on
+              // mobile (where most teachers will actually do this) instead
+              // of just a file picker - desktop browsers ignore the
+              // attribute and just show a normal file picker.
+              capture="environment"
               className="mt-2 block w-full text-sm"
             />
           </div>
