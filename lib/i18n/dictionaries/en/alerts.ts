@@ -17,7 +17,12 @@ const alerts = {
     studentPerformanceWarning: "Student performance warning",
     classPerformanceWarning: "Class performance warning",
     subjectPerformanceWarning: "Subject performance warning",
-    paperPrinted: "Paper printing update"
+    paperPrinted: "Paper printing update",
+    attendanceSubmissionMissing: "Attendance not submitted",
+    attendanceComplianceWarning: "Attendance compliance warning",
+    studentAttendanceWarning: "Student attendance warning",
+    classAttendanceWarning: "Class attendance warning",
+    examAttendanceResultException: "Exam attendance / result exception"
   },
   severity: {
     info: "Info",

@@ -16,7 +16,12 @@ const alerts = {
     studentPerformanceWarning: "طالب علم کی کارکردگی سے متعلق انتباہ",
     classPerformanceWarning: "جماعت کی کارکردگی سے متعلق انتباہ",
     subjectPerformanceWarning: "مضمون کی کارکردگی سے متعلق انتباہ",
-    paperPrinted: "پرچے کی پرنٹنگ سے متعلق اپ ڈیٹ"
+    paperPrinted: "پرچے کی پرنٹنگ سے متعلق اپ ڈیٹ",
+    attendanceSubmissionMissing: "حاضری جمع نہیں کی گئی",
+    attendanceComplianceWarning: "حاضری تعمیل سے متعلق انتباہ",
+    studentAttendanceWarning: "طالب علم کی حاضری سے متعلق انتباہ",
+    classAttendanceWarning: "جماعت کی حاضری سے متعلق انتباہ",
+    examAttendanceResultException: "امتحانی حاضری / نتیجہ استثنیٰ"
   },
   severity: {
     info: "معلومات",

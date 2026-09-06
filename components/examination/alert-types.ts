@@ -11,7 +11,12 @@ export type AlertType =
   | "student_performance_warning"
   | "class_performance_warning"
   | "subject_performance_warning"
-  | "paper_printed";
+  | "paper_printed"
+  | "attendance_submission_missing"
+  | "attendance_compliance_warning"
+  | "student_attendance_warning"
+  | "class_attendance_warning"
+  | "exam_attendance_result_exception";
 
 export type AlertSeverity = "info" | "warning" | "urgent" | "critical";
 
@@ -68,7 +73,19 @@ export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
   // would flatly contradict alert.message (rendered right below it) in one
   // of the two cases. Kept neutral so it never contradicts either meaning;
   // the actual message text always disambiguates which situation this is.
-  paper_printed: "alerts.types.paperPrinted"
+  paper_printed: "alerts.types.paperPrinted",
+  // Added by the attendance <-> examination integration migration
+  // (20260906193715_attendance_alerts_and_exam_reconciliation.sql), which
+  // extended alerts_type_check with 5 more values - these were missing
+  // from this map entirely, so any real row of one of these types made
+  // ALERT_TYPE_LABEL[alert.type] resolve to undefined and crashed t()
+  // (translate() does key.split(".") on it). Keep this map in sync with
+  // that CHECK constraint's full value list.
+  attendance_submission_missing: "alerts.types.attendanceSubmissionMissing",
+  attendance_compliance_warning: "alerts.types.attendanceComplianceWarning",
+  student_attendance_warning: "alerts.types.studentAttendanceWarning",
+  class_attendance_warning: "alerts.types.classAttendanceWarning",
+  exam_attendance_result_exception: "alerts.types.examAttendanceResultException"
 };
 
 /**
