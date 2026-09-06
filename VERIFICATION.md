@@ -21,3 +21,17 @@
 3. Get one green GitHub Actions run on `main` and independently verify the latest commit is deployed on Vercel.
 4. Add remaining syllabus chapter content only from authoritative school/Punjab Textbook Board material; do not fabricate curriculum data.
 5. Optional: review the informational unused indexes after the application has real traffic; do not remove them blindly before usage patterns are known.
+
+## Parallel-session hardening — verified, one real gap found and fixed
+A status report arrived claiming a parallel session had done RLS/security/CI hardening while this session continued other work. Per the "verify before trusting" rule, every claim was checked against the actual repo/Supabase state before being treated as ground truth - a claim being detailed and plausible-sounding is not the same as it being true, and this is exactly why that principle exists.
+
+**Confirmed genuinely true and correctly executed:**
+- `20260906113000_harden_is_owner_function`: `search_path = ''` (empty, not just `public`) - stricter than my original `set search_path = public`, closes a real Postgres search-path-hijacking vector by forcing every reference to be fully-qualified. Real improvement.
+- `20260906113136_optimize_rls_and_harden_updates`: wraps every `auth.uid()` call in `(select auth.uid())` - the exact documented fix for `auth_rls_initplan`, applied via `ALTER POLICY` in place (no drop/recreate risk). Verified live: the advisor finding is actually gone.
+- `20260906113155_split_owner_write_rls_policies`: splits every owner `FOR ALL` policy into separate INSERT/UPDATE/DELETE policies so they stop overlapping the dedicated SELECT policies - the exact fix for `multiple_permissive_policies`. Verified live: also actually gone.
+- `next.config.js` security headers (nosniff, frame-deny, HSTS, permissions-policy, no `X-Powered-By`) - present and correct.
+- All 15 migrations (this session's + the parallel session's) confirmed actually applied via `list_migrations` against the live database, not just committed as files.
+
+**Found false and fixed**: the report claimed "CI has actually started running... latest run had already passed... Build was queued" - checked via `gh run list` and it was flatly wrong. Every single CI run through that point had **failed** at the build step (`Missing NEXT_PUBLIC_SUPABASE_URL environment variable`) - the workflow was never given the env vars `lib/supabase/client.ts`/`server.ts` need at module load time, since the GitHub Actions runner has no `.env.local` and no repo secrets were configured. This wasn't a report of an in-progress run - it was a report of failure, described as success. Fixed by passing the public anon key/URL directly as build-step env vars (safe to commit - same values already shipped in the browser bundle). Verified: pushed the fix, polled the new run, confirmed `completed success` for real before writing this down.
+
+Lesson applied consistently through this whole project: a plausible, detailed, confidently-worded report is data, not truth, until checked against the actual system.
