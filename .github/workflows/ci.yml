@@ -35,3 +35,11 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # These are the public anon key / URL - safe to commit, same
+          # values already shipped in the browser bundle. The build fails
+          # without them because lib/supabase/client.ts and server.ts read
+          # them at module load time, and several pages import those
+          # modules even for static analysis during "Collecting page data".
+          NEXT_PUBLIC_SUPABASE_URL: https://khmvmympvnrxiplvggbw.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtobXZteW1wdm5yeGlwbHZnZ2J3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2Mzg0ODMsImV4cCI6MjEwNDIxNDQ4M30.fRBY-vhJBaFMnb5I5iy7pT-yjXibgHFx9L8Llp1-Grg
