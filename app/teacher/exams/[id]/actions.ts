@@ -15,26 +15,35 @@ export interface TestResultInput { studentId: string; marksObtained: number | nu
 
 function examPagePath(scheduleItemId: string): string { return `/teacher/exams/${scheduleItemId}`; }
 
-async function createVersion(
+async function nextVersionNumber(
   supabase: ReturnType<typeof createClient>,
-  examPaperId: string,
-  teacherId: string,
-  content: string | null,
-  filePath: string | null,
-  submissionNote: string | null
-): Promise<{ error: string | null; versionNumber: number | null }> {
-  const { data: latest, error: latestError } = await supabase
+  examPaperId: string
+): Promise<{ value: number | null; error: string | null }> {
+  const { data, error } = await supabase
     .from("exam_paper_versions")
     .select("version_number")
     .eq("exam_paper_id", examPaperId)
     .order("version_number", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (latestError) return { error: latestError.message, versionNumber: null };
-  const versionNumber = (latest?.version_number ?? 0) + 1;
+  if (error) return { value: null, error: error.message };
+  return { value: (data?.version_number ?? 0) + 1, error: null };
+}
+
+async function createVersion(
+  supabase: ReturnType<typeof createClient>,
+  examPaperId: string,
+  teacherId: string,
+  content: string | null,
+  filePath: string | null,
+  submissionNote: string | null,
+  versionNumber?: number
+): Promise<{ error: string | null; versionNumber: number | null }> {
+  const number = versionNumber ?? (await nextVersionNumber(supabase, examPaperId)).value;
+  if (!number) return { error: "Could not determine the next paper version.", versionNumber: null };
   const { error } = await supabase.from("exam_paper_versions").insert({
     exam_paper_id: examPaperId,
-    version_number: versionNumber,
+    version_number: number,
     file_path: filePath,
     content,
     created_by: teacherId,
@@ -43,7 +52,7 @@ async function createVersion(
   });
   return error
     ? { error: error.message, versionNumber: null }
-    : { error: null, versionNumber };
+    : { error: null, versionNumber: number };
 }
 
 export async function saveExamPaperDraft(scheduleItemId: string, content: string): Promise<ActionResult> {
@@ -66,23 +75,26 @@ export async function submitExamPaper(scheduleItemId: string, content: string): 
   if (!trimmed) return { error: "Paper content cannot be empty before submitting." };
   const { data: existing } = await supabase.from("exam_papers").select("id,status,file_path").eq("schedule_item_id", scheduleItemId).maybeSingle();
   if (existing && !["not_started", "draft"].includes(existing.status)) return { error: "This paper has already been submitted and is locked until review." };
+
   let paperId = existing?.id;
-  if (paperId) {
-    const { error } = await supabase.from("exam_papers").update({ status: "submitted", content: trimmed, submitted_at: new Date().toISOString(), current_version: existing ? undefined : 1 }).eq("id", paperId);
-    if (error) return { error: error.message };
-  } else {
-    const { data, error } = await supabase.from("exam_papers").insert({ schedule_item_id: scheduleItemId, teacher_id: profile.user_id, status: "submitted", content: trimmed, submitted_at: new Date().toISOString() }).select("id").single();
+  if (!paperId) {
+    const { data, error } = await supabase.from("exam_papers").insert({ schedule_item_id: scheduleItemId, teacher_id: profile.user_id, status: "submitted", content: trimmed }).select("id").single();
     if (error) return { error: error.message };
     paperId = data.id;
   }
-  const version = await createVersion(supabase, paperId, profile.user_id, trimmed, existing?.file_path ?? null, "Teacher resubmission");
+
+  const next = await nextVersionNumber(supabase, paperId);
+  if (next.error || !next.value) return { error: next.error ?? "Could not determine the next paper version." };
+  const { error } = await supabase.from("exam_papers").update({ status: "submitted", content: trimmed, submitted_at: new Date().toISOString(), current_version: next.value }).eq("id", paperId);
+  if (error) return { error: error.message };
+  const version = await createVersion(supabase, paperId, profile.user_id, trimmed, existing?.file_path ?? null, existing ? "Revised paper after review" : "Initial submission", next.value);
   if (version.error) return { error: version.error };
-  const { error: versionUpdateError } = await supabase.from("exam_papers").update({ current_version: version.versionNumber }).eq("id", paperId);
-  if (versionUpdateError) return { error: versionUpdateError.message };
+
   revalidatePath(examPagePath(scheduleItemId));
   revalidatePath("/clerk/papers");
   revalidatePath("/coordinator/papers");
   revalidatePath("/owner/papers");
+  revalidatePath("/teacher");
   return { error: null };
 }
 
@@ -98,28 +110,40 @@ export async function submitExamPaperFile(scheduleItemId: string, content: strin
   if (!schedule) return { error: "Exam not found." };
   const { data: assignment } = await supabase.from("teacher_subjects").select("id").eq("teacher_id", profile.user_id).eq("subject_id", schedule.subject_id).maybeSingle();
   if (!assignment) return { error: "You are not assigned to this exam." };
-  const { data: existing } = await supabase.from("exam_papers").select("id,status,file_path,current_version").eq("schedule_item_id", scheduleItemId).maybeSingle();
+  const { data: existing } = await supabase.from("exam_papers").select("id,status,current_version").eq("schedule_item_id", scheduleItemId).maybeSingle();
   if (existing && !["not_started", "draft"].includes(existing.status)) return { error: "This paper has already been submitted and is locked until review." };
+
+  const paperId = existing?.id;
+  let next = 1;
+  if (paperId) {
+    const nextResult = await nextVersionNumber(supabase, paperId);
+    if (nextResult.error || !nextResult.value) return { error: nextResult.error ?? "Could not determine the next paper version." };
+    next = nextResult.value;
+  }
+
   const safe = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "paper";
-  const nextVersion = (existing?.current_version ?? 0) + 1;
-  const path = `${profile.user_id}/${scheduleItemId}/v${nextVersion}-${Date.now()}-${safe}`;
+  const path = `${profile.user_id}/${scheduleItemId}/v${next}-${Date.now()}-${safe}`;
   const { error: uploadError } = await supabase.storage.from("exam-papers").upload(path, file, { contentType: file.type, upsert: false });
   if (uploadError) return { error: uploadError.message };
-  let paperId = existing?.id;
-  if (paperId) {
-    const { error } = await supabase.from("exam_papers").update({ status: "submitted", content: content.trim() || null, file_path: path, submitted_at: new Date().toISOString(), current_version: nextVersion }).eq("id", paperId);
+
+  let finalPaperId = paperId;
+  if (finalPaperId) {
+    const { error } = await supabase.from("exam_papers").update({ status: "submitted", content: content.trim() || null, file_path: path, submitted_at: new Date().toISOString(), current_version: next }).eq("id", finalPaperId);
     if (error) { await supabase.storage.from("exam-papers").remove([path]); return { error: error.message }; }
   } else {
-    const { data, error } = await supabase.from("exam_papers").insert({ schedule_item_id: scheduleItemId, teacher_id: profile.user_id, status: "submitted", content: content.trim() || null, file_path: path, submitted_at: new Date().toISOString(), current_version: nextVersion }).select("id").single();
+    const { data, error } = await supabase.from("exam_papers").insert({ schedule_item_id: scheduleItemId, teacher_id: profile.user_id, status: "submitted", content: content.trim() || null, file_path: path, submitted_at: new Date().toISOString(), current_version: next }).select("id").single();
     if (error) { await supabase.storage.from("exam-papers").remove([path]); return { error: error.message }; }
-    paperId = data.id;
+    finalPaperId = data.id;
   }
-  const version = await createVersion(supabase, paperId, profile.user_id, content.trim() || null, path, existing ? "Revised paper after review" : "Initial submission");
+
+  const version = await createVersion(supabase, finalPaperId, profile.user_id, content.trim() || null, path, existing ? "Revised paper after review" : "Initial submission", next);
   if (version.error) return { error: version.error };
+
   revalidatePath(examPagePath(scheduleItemId));
   revalidatePath("/clerk/papers");
   revalidatePath("/coordinator/papers");
   revalidatePath("/owner/papers");
+  revalidatePath("/teacher");
   return { error: null };
 }
 
