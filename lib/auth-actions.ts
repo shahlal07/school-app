@@ -3,11 +3,22 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { usernameToSyntheticEmail } from "@/lib/auth/username";
 
+/**
+ * Accepts either a real email (owner accounts) or a username (most teacher
+ * accounts, which have no real email) - resolved to the same deterministic
+ * synthetic email used at account-creation time, so no lookup is needed.
+ */
 export async function signIn(
-  email: string,
+  identifier: string,
   password: string
 ): Promise<{ error: string | null }> {
+  const trimmedIdentifier = identifier.trim();
+  const email = trimmedIdentifier.includes("@")
+    ? trimmedIdentifier
+    : usernameToSyntheticEmail(trimmedIdentifier);
+
   const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email,

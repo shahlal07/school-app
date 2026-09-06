@@ -7,16 +7,12 @@ import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/auth-actions";
 
 interface FormErrors {
-  email?: string;
+  identifier?: string;
   password?: string;
 }
 
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
 export function LoginForm() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -24,12 +20,10 @@ export function LoginForm() {
 
   function validate(): FormErrors {
     const nextErrors: FormErrors = {};
-    const trimmedEmail = email.trim();
+    const trimmedIdentifier = identifier.trim();
 
-    if (!trimmedEmail) {
-      nextErrors.email = "Email is required.";
-    } else if (!isValidEmail(trimmedEmail)) {
-      nextErrors.email = "Enter a valid email address.";
+    if (!trimmedIdentifier) {
+      nextErrors.identifier = "Username or email is required.";
     }
 
     if (!password) {
@@ -54,7 +48,7 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      const result = await signIn(email.trim(), password);
+      const result = await signIn(identifier.trim(), password);
 
       if (result.error) {
         setServerError(result.error);
@@ -87,24 +81,24 @@ export function LoginForm() {
       ) : null}
 
       <Input
-        id="email"
-        name="email"
-        type="email"
-        label="Email"
-        value={email}
+        id="identifier"
+        name="identifier"
+        type="text"
+        label="Username or email"
+        value={identifier}
         onChange={(event) => {
-          setEmail(event.target.value);
+          setIdentifier(event.target.value);
 
-          if (errors.email) {
-            setErrors((current) => ({ ...current, email: undefined }));
+          if (errors.identifier) {
+            setErrors((current) => ({ ...current, identifier: undefined }));
           }
 
           if (serverError) {
             setServerError(null);
           }
         }}
-        error={errors.email}
-        autoComplete="email"
+        error={errors.identifier}
+        autoComplete="username"
         disabled={loading}
       />
 

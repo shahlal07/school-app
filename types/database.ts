@@ -5,6 +5,8 @@ export interface Profile {
   role: "owner" | "teacher";
   phone: string | null;
   is_active: boolean;
+  /** Login identifier for accounts without a real email (most teachers). Null for email-based accounts. */
+  username: string | null;
   created_at: string;
   updated_at: string;
 }
