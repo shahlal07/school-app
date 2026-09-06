@@ -130,7 +130,13 @@ Commits: `90ac72c`
 5. PG-8 and non-core-9th/10th-subject chapter content - deliberately left empty rather than fabricated; a real content-authoring pass, not a coding task.
 6. ~~No audit_logs are actually being written yet~~ **Closed this session**: added `lib/audit.ts` (fire-and-forget helper, failures logged not thrown - an audit write must never block the real action) and wired it into the 6 most sensitive actions: `inviteTeacher`, `setTeacherActive`, `approvePaper`, `rejectPaper`, `resolveAlert`, `updatePassPercentage`. **Caught a real bug during this pass**: `updatePassPercentage`'s first draft passed the string `"pass_percentage"` as `entity_id`, but that column is typed `uuid` - would have silently failed every time (the helper swallows errors by design, so this would never have surfaced as a crash, just silently-missing audit rows). Fixed to use the setting row's actual `id`, then live-tested the exact insert shape via SQL to confirm it now succeeds; test row cleaned up.
 
-Remaining honest gaps: `SUPABASE_SERVICE_ROLE_KEY` not set, no second real user yet, the two deferred RLS performance advisories, the leaked-password-protection toggle, and PG-8/non-core-subject chapter content (deliberately deferred, not fabricated).
+Remaining honest gaps: no second real user yet, the two deferred RLS performance advisories, the leaked-password-protection toggle, and PG-8/non-core-subject chapter content (deliberately deferred, not fabricated).
+
+## Post-launch: service-role key live
+- [x] Owner set `SUPABASE_SERVICE_ROLE_KEY` in Vercel (Production) themselves via their own Chrome, following the direct settings-page link - never entered or seen by me, per the hard rule on secrets.
+- [x] Triggered a fresh production deployment (`vercel --prod`) so the running app picks up the new env var - `dpl_4ewXEK3bcnLwwBTRu2qPX2bALapu`, READY.
+- 🟡 Not yet set for Preview/Development environments - only matters if teacher invites need to work from local dev, not the live site.
+- 📝 The owner-invites-teacher flow itself is still not live-exercised end to end (needs the owner to actually click "Invite teacher" on the live site with a real email) - the missing key was the only known blocker to it working; that block is now cleared.
 
 Commit: `eedc9dd` (schema + seed + type fixes)
 
