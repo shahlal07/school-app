@@ -10,7 +10,7 @@ export default async function ClerkMarksPage({ searchParams }: { searchParams?: 
   const { data: schedules } = await supabase.from("schedule_items").select("id,title,class_id,subject_id,teacher_id,scheduled_date,status").order("scheduled_date", { ascending: false });
   const past = (schedules ?? []).filter(s => s.scheduled_date <= new Date().toISOString().slice(0,10) && !["cancelled","skipped"].includes(s.status));
   if (!selectedId) {
-    const teacherIds=[...new Set(past.map(s=>s.teacher_id))];
+    const teacherIds=Array.from(new Set(past.map(s=>s.teacher_id)));
     const [{data:classes},{data:subjects},{data:teachers}] = await Promise.all([
       supabase.from("classes").select("id,name"),supabase.from("subjects").select("id,name"),supabase.from("profiles").select("user_id,full_name").in("user_id",teacherIds)
     ]);
