@@ -14,20 +14,13 @@ export default async function ClerkStudentsPage() {
     supabase.from("students").select("*").order("roll_no", { ascending: true })
   ]);
 
-  const classes = ((classesRes.data as Class[] | null) ?? [])
-    .slice()
-    .sort((a, b) => classOrderIndex(a.name) - classOrderIndex(b.name));
+  const classes = ((classesRes.data as Class[] | null) ?? []).slice().sort((a, b) => classOrderIndex(a.name) - classOrderIndex(b.name));
   const sections = (sectionsRes.data as Section[] | null) ?? [];
   const students = (studentsRes.data as Student[] | null) ?? [];
 
-  return (
-    <main className="p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-neutral-900">{t("clerk.students.title")}</h1>
-      <p className="mt-1 text-sm text-neutral-500">{t("clerk.students.subtitle")}</p>
-
-      <div className="mt-5">
-        <StudentsManager classes={classes} sections={sections} students={students} />
-      </div>
-    </main>
-  );
+  return <main className="p-4 sm:p-6">
+    <h1 className="text-xl font-semibold text-neutral-900">{t("clerk.students.title")}</h1>
+    <p className="mt-1 text-sm text-neutral-500">{t("clerk.students.subtitle")}</p>
+    <div className="mt-5"><StudentsManager classes={classes} sections={sections} students={students} resultCardBasePath="/clerk/students" /></div>
+  </main>;
 }

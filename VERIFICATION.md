@@ -174,3 +174,18 @@ A concurrent session built Phase 3 and Phase 4 of the plan (see `VERIFICATION_PH
 ### Not yet independently verified
 - Live click-through of the wired clerk dashboard and the new Phase 3/4 pages as the actual clerk/teacher test accounts (same password constraint noted throughout this file) - RLS/RPC authorization was already verified live by the other session per `VERIFICATION_PHASE3_4.md`, but the visual result of this session's dashboard wiring has not been clicked through by a human yet.
 - `app/clerk/layout.tsx`'s new nav labels ("Documents", "Admissions", "Fees", "Enter Marks", "Attendance") are hardcoded English strings rather than routed through `t()` like the rest of the nav array - a minor i18n inconsistency introduced by the other session, not blocking but worth fixing in a follow-up pass alongside adding Urdu equivalents.
+
+## Merge: Student & staff profiles — 2026-09-08
+
+Second merge from the concurrent session's `phase3-4-clerk-exam-delegation` branch (same branch, new commits on top of the previous merge point) - complete clerk-editable student biodata/contact tied to roll number, plus a full staff directory with clerk-editable username/contact/designation.
+
+- **Schema**: new `student_profiles` table (father/guardian name+relation+contact, DOB, gender, nationality, address, city, admission date, previous school, blood group, notes) keyed 1:1 to `students`, RLS via the existing `can_manage_student_records()` bucket (owner/principal/clerk read+write). New `security definer` RPCs `clerk_upsert_student_profile` and `clerk_update_staff_profile` (the latter blocks editing an owner's own profile, validates username format, checked live in the database). A follow-up correction migration widened `clerk_upsert_student_profile`'s check from `is_clerk()` to `can_manage_student_records()` for consistency with the rest of that permission bucket, and rewrote `profiles_select` (additive intent, not a narrowing) so `can_manage_student_records()` roles can see the full non-owner staff directory needed for the new staff list.
+- **Pages**: `app/clerk/students/[id]` - a real per-student profile page (editable biodata form + a real result-tracking list pulling every `test_results` row for that student, joined to subject/schedule, correctly tied to the student's roll number). `app/clerk/staff` rebuilt into a full editable directory (teacher/principal/academic_coordinator/clerk roles, not just teachers) via a new `staff-directory-client.tsx`.
+- **Merge**: again a clean 3-way merge, no conflicts - this branch's new commits touched only clerk-specific files, none of the dashboard files from Phase 1/2.
+- **Fixed during merge**: one real lint error in the new code (`react/no-unescaped-entities` on an apostrophe in `app/clerk/students/[id]/page.tsx`) - fixed before committing.
+- **Live-verified before merging**: `student_profiles` table, both new RPCs (`clerk_upsert_student_profile`, `clerk_update_staff_profile`) confirmed present in the database. Security advisor re-run post-merge: only the same already-accepted `SECURITY DEFINER`-executable pattern (now including the two new clerk profile RPCs) plus the pre-existing leaked-password warning - no new finding categories.
+
+**Build gates**: `npx tsc --noEmit`, `npm run lint`, and `npm run build` all clean, including the new `/clerk/students/[id]` route.
+
+### Not yet independently verified
+- Live click-through as the clerk test account to confirm the student profile form saves correctly and the staff directory's username/contact edits actually persist (same password constraint noted throughout this file).
