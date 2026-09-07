@@ -30,7 +30,16 @@ const teacher = {
       emptyTodayNoSubjects: "No subjects are assigned yet.",
       emptyTodayBreak: "Enjoy the break. Your next exam tasks are shown above.",
       classFallback: "Class",
-      subjectFallback: "Subject"
+      subjectFallback: "Subject",
+      quickActionsHeading: "Quick actions",
+      takeAttendance: "Take Attendance",
+      addMarks: "Add Marks",
+      viewMyClasses: "View My Classes",
+      myAssessments: "My Assessments",
+      markAttendance: "Mark Attendance",
+      recentActivityHeading: "Recent activity",
+      emptyActivityTitle: "Nothing to show yet",
+      emptyActivityDescription: "Marks you enter and alerts resolved against you will appear here."
     },
     testType: {
       topic: "Topic test",

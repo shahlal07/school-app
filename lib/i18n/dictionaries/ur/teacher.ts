@@ -26,7 +26,16 @@ const teacher = {
       emptyTodayNoSubjects: "ابھی تک کوئی مضمون تفویض نہیں کیا گیا۔",
       emptyTodayBreak: "آرام کریں۔ آپ کے اگلے امتحانی کام اوپر دکھائے گئے ہیں۔",
       classFallback: "جماعت",
-      subjectFallback: "مضمون"
+      subjectFallback: "مضمون",
+      quickActionsHeading: "فوری اقدامات",
+      takeAttendance: "حاضری لگائیں",
+      addMarks: "نمبر شامل کریں",
+      viewMyClasses: "میری جماعتیں دیکھیں",
+      myAssessments: "میرے امتحانات",
+      markAttendance: "حاضری لگائیں",
+      recentActivityHeading: "حالیہ سرگرمی",
+      emptyActivityTitle: "ابھی تک کچھ بھی نہیں",
+      emptyActivityDescription: "آپ کے درج کردہ نمبر اور آپ کے خلاف حل شدہ انتباہات یہاں ظاہر ہوں گے۔"
     },
     testType: {
       topic: "موضوعی ٹیسٹ",

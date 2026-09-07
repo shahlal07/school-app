@@ -3,12 +3,18 @@ import Link from "next/link";
 import type { Profile } from "@/types/database";
 import type { Class, Subject } from "@/types/examination";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth/session";
 import { classOrderIndex } from "@/components/examination/constants";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getT } from "@/lib/i18n/get-translator";
 import { Bdi } from "@/components/shared/bdi";
+import { pakistanDate, getStaffAttendance } from "@/lib/attendance/report";
+import { getAttendanceAcademicSignals } from "@/lib/attendance/integration";
+import { PlainStatTile } from "@/components/shared/dashboard-charts";
+import { AttendanceOverviewToggle, type AttendanceAggregate } from "@/components/coordinator/attendance-overview-toggle";
+import type { DailyAttendanceReportRow } from "@/types/attendance";
 
 interface ScheduleItemRow {
   id: string;
@@ -73,6 +79,15 @@ const WEAK_TOPIC_LIMIT = 5;
 export default async function CoordinatorDashboardPage() {
   const supabase = createClient();
   const t = await getT();
+  const profile = await getCurrentProfile();
+
+  const todayIso = pakistanDate();
+  const thirtyDaysAgo = new Date(`${todayIso}T00:00:00+05:00`);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  const thirtyDaysAgoIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(thirtyDaysAgo);
+  const sevenDaysAgo = new Date(`${todayIso}T00:00:00+05:00`);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const sevenDaysAgoIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(sevenDaysAgo);
 
   const [
     classesRes,
@@ -83,7 +98,14 @@ export default async function CoordinatorDashboardPage() {
     examPapersRes,
     teachersRes,
     teacherSubjectsRes,
-    testResultsRes
+    testResultsRes,
+    attendanceReportRes,
+    sectionsCountRes,
+    submittedTodayRes,
+    staffAttendance,
+    riskSignals,
+    recentSessionsRes,
+    recentResolvedRes
   ] = await Promise.all([
     supabase.from("classes").select("*"),
     supabase.from("subjects").select("*"),
@@ -95,7 +117,23 @@ export default async function CoordinatorDashboardPage() {
     supabase.from("exam_papers").select("schedule_item_id, status"),
     supabase.from("profiles").select("*").eq("role", "teacher"),
     supabase.from("teacher_subjects").select("teacher_id, subject_id"),
-    supabase.from("test_results").select("schedule_item_id, is_pass, is_absent")
+    supabase.from("test_results").select("schedule_item_id, is_pass, is_absent"),
+    supabase
+      .from("attendance_daily_report")
+      .select("attendance_date, present_count, absent_count, late_count, excused_count")
+      .gte("attendance_date", thirtyDaysAgoIso)
+      .lte("attendance_date", todayIso),
+    supabase.from("sections").select("id", { count: "exact", head: true }),
+    supabase.from("attendance_sessions").select("id", { count: "exact", head: true }).eq("attendance_date", todayIso).eq("status", "submitted"),
+    getStaffAttendance(todayIso),
+    getAttendanceAcademicSignals(50),
+    supabase
+      .from("attendance_sessions")
+      .select("id, class_id, section_id, attendance_date")
+      .eq("status", "submitted")
+      .order("submitted_at", { ascending: false })
+      .limit(2),
+    supabase.from("alerts").select("id, message, resolved_at").eq("status", "resolved").order("resolved_at", { ascending: false }).limit(2)
   ]);
 
   const classes = ((classesRes.data as Class[] | null) ?? [])
@@ -163,7 +201,6 @@ export default async function CoordinatorDashboardPage() {
     .filter((entry) => entry.subjectProgress.length > 0);
 
   // ---- 3. Exam control counts ----
-  const todayIso = new Date().toISOString().slice(0, 10);
   const upcomingExams = scheduleItems.filter(
     (item) =>
       (item.status === "upcoming" || item.status === "scheduled") &&
@@ -219,14 +256,127 @@ export default async function CoordinatorDashboardPage() {
 
   const hasAnyGradedResults = gradedResults.length > 0;
 
+  // ---- Attendance Overview: real Today/7-day/30-day aggregates from
+  // attendance_daily_report, no fabricated ranges ----
+  const attendanceRows = (attendanceReportRes.data as Pick<DailyAttendanceReportRow, "attendance_date" | "present_count" | "absent_count" | "late_count" | "excused_count">[] | null) ?? [];
+  const sumAttendance = (rows: typeof attendanceRows): AttendanceAggregate =>
+    rows.reduce(
+      (acc, r) => ({
+        present: acc.present + r.present_count,
+        absent: acc.absent + r.absent_count,
+        late: acc.late + r.late_count,
+        excused: acc.excused + r.excused_count
+      }),
+      { present: 0, absent: 0, late: 0, excused: 0 }
+    );
+  const todayAttendance = sumAttendance(attendanceRows.filter((r) => r.attendance_date === todayIso));
+  const sevenDayAttendance = sumAttendance(attendanceRows.filter((r) => r.attendance_date >= sevenDaysAgoIso));
+  const thirtyDayAttendance = sumAttendance(attendanceRows);
+  const todayTotal = todayAttendance.present + todayAttendance.absent + todayAttendance.late + todayAttendance.excused;
+  const attendancePct = todayTotal > 0 ? Math.round((todayAttendance.present / todayTotal) * 1000) / 10 : null;
+
+  // ---- Staff Attendance % today ----
+  const staffPresentCount = staffAttendance.staff.filter((s) => staffAttendance.existing[s.user_id] === "present").length;
+  const staffAttendancePct = staffAttendance.staff.length > 0 ? Math.round((staffPresentCount / staffAttendance.staff.length) * 1000) / 10 : null;
+
+  // ---- Classes Submitted today ----
+  const totalSections = sectionsCountRes.count ?? 0;
+  const classesSubmittedToday = submittedTodayRes.count ?? 0;
+
+  // ---- Students Needing Attention (real attendance_academic_signal rows) ----
+  const studentsNeedingAttention = riskSignals.rows.filter((r) => r.signal !== "normal");
+
+  // ---- Recent Activity: real submitted attendance sessions + resolved alerts ----
+  const classNameByIdForActivity = new Map(((classesRes.data as Class[] | null) ?? []).map((c) => [c.id, c.name]));
+  type ActivityItem = { id: string; text: string; meta: string; at: string };
+  const recentSessions = (recentSessionsRes.data as { id: string; class_id: string; section_id: string; attendance_date: string }[] | null) ?? [];
+  const recentResolved = (recentResolvedRes.data as { id: string; message: string; resolved_at: string | null }[] | null) ?? [];
+  const coordinatorActivity: ActivityItem[] = [
+    ...recentSessions.map((s) => ({
+      id: `session-${s.id}`,
+      text: "Attendance submitted",
+      meta: `${classNameByIdForActivity.get(s.class_id) ?? "—"} · ${s.attendance_date}`,
+      at: s.attendance_date
+    })),
+    ...recentResolved.filter((a) => a.resolved_at).map((a) => ({ id: `alert-${a.id}`, text: "Alert resolved", meta: a.message, at: a.resolved_at as string }))
+  ]
+    .sort((a, b) => (a.at < b.at ? 1 : -1))
+    .slice(0, 4);
+
+  const firstName = profile?.full_name.split(" ")[0] ?? null;
+  const hour = new Date().getUTCHours();
+  const greetingWord = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
   return (
     <main className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-semibold text-neutral-900">{t("coordinator.dashboard.title")}</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">
+          {greetingWord}{firstName ? <>, <Bdi>{firstName}</Bdi></> : null}
+        </h1>
         <p className="mt-1 text-sm text-neutral-500">
           {t("coordinator.dashboard.subtitle")}
         </p>
       </div>
+
+      {/* Attendance / Staff Attendance stat tiles */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+        <PlainStatTile label="Attendance" value={attendancePct === null ? "—" : `${attendancePct}%`} />
+        <PlainStatTile label="Staff Attendance" value={staffAttendancePct === null ? "—" : `${staffAttendancePct}%`} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Attendance Overview */}
+        <Card>
+          <CardHeader><CardTitle>Attendance Overview</CardTitle></CardHeader>
+          <CardContent>
+            {todayTotal === 0 && sevenDayAttendance.present + sevenDayAttendance.absent + sevenDayAttendance.late + sevenDayAttendance.excused === 0 ? (
+              <EmptyState title="No attendance submitted yet" description="Once class teachers submit daily attendance, the breakdown will appear here." />
+            ) : (
+              <AttendanceOverviewToggle
+                today={todayAttendance}
+                sevenDay={sevenDayAttendance}
+                thirtyDay={thirtyDayAttendance}
+                labels={{ today: "Today", sevenDay: "7 Days", thirtyDay: "30 Days" }}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Classes Submitted */}
+        <Card>
+          <CardHeader><CardTitle>Classes Submitted</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold text-neutral-900">
+              <Bdi>{classesSubmittedToday}</Bdi> / <Bdi>{totalSections}</Bdi>
+            </p>
+            <p className="mt-1 text-sm text-neutral-500">sections have submitted today&apos;s attendance.</p>
+            <Link href="/coordinator/attendance" className="mt-3 inline-block text-xs font-medium text-primary-600 hover:underline">
+              View attendance &rarr;
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Students Needing Attention */}
+      <Card>
+        <CardHeader><CardTitle>Students Needing Attention</CardTitle></CardHeader>
+        <CardContent>
+          {studentsNeedingAttention.length === 0 ? (
+            <EmptyState title={t("intelligence.nothingUrgent")} description="No attendance/academic risk signals right now." />
+          ) : (
+            <ul className="flex flex-col divide-y divide-neutral-100">
+              {studentsNeedingAttention.slice(0, 6).map((row) => (
+                <li key={row.student_id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <span className="truncate text-sm text-neutral-700"><Bdi>{row.name}</Bdi></span>
+                  <Badge variant={row.signal === "attendance_and_academic" ? "danger" : "warning"}>
+                    {row.signal === "attendance_and_academic" ? "High" : "Medium"}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Exam control counts */}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -364,6 +514,28 @@ export default async function CoordinatorDashboardPage() {
                     <p className="text-xs text-neutral-500"><Bdi>{wt.total}</Bdi> {t("coordinator.dashboard.gradedAttemptsWord")}</p>
                   </div>
                   <Badge variant={wt.passRate < 50 ? "danger" : "warning"}><Bdi>{wt.passRate}%</Bdi> {t("coordinator.dashboard.passWord")}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Recent Activity */}
+      <Card>
+        <CardHeader><CardTitle>Recent Activity</CardTitle></CardHeader>
+        <CardContent>
+          {coordinatorActivity.length === 0 ? (
+            <EmptyState title="Nothing to show yet" description="Submitted attendance and resolved alerts will appear here." />
+          ) : (
+            <ul className="flex flex-col divide-y divide-neutral-100">
+              {coordinatorActivity.map((item) => (
+                <li key={item.id} className="flex items-start gap-2.5 py-2.5 first:pt-0 last:pb-0">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-success-500" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-neutral-900">{item.text}</p>
+                    <p className="truncate text-xs text-neutral-500"><Bdi>{item.meta}</Bdi></p>
+                  </div>
                 </li>
               ))}
             </ul>
