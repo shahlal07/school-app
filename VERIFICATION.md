@@ -160,3 +160,17 @@ Fix is a pure rendering addition, **zero new queries**: reused the exact same re
 
 ### Not yet independently verified
 - Live click-through as the coordinator test account to confirm the Class 9/10 exam-cycle schedules actually render (same password constraint as Phase 1 above).
+
+## Merge: Phase 3 (Clerk Modules) + Phase 4 (Exam/Attendance Delegation) — 2026-09-08
+
+A concurrent session built Phase 3 and Phase 4 of the plan (see `VERIFICATION_PHASE3_4.md` for their own detailed verification) on a separate branch (`phase3-4-clerk-exam-delegation`), deliberately avoiding `app/clerk/page.tsx` and every dashboard file this session owned, so the two efforts could ship independently and merge without a two-writer collision.
+
+- **Merge**: clean 3-way merge, zero conflicts. A raw `git diff main..branch` misleadingly showed `app/owner/page.tsx`/`app/principal/page.tsx`/`app/coordinator/page.tsx`/`app/coordinator/schedule/page.tsx`/`app/teacher/page.tsx` as "changed" between the two, but that was entirely this session's own later commits on `main` that the other branch's tip simply didn't have yet - the other session never actually touched those files in their own commits, so git's real merge-base comparison correctly resolved with zero impact on the Phase 1/2 dashboard work above.
+- **Live schema verification before merging**: confirmed directly against the database (not just trusting file/migration-name matching, since the applied migration versions in `list_migrations` didn't line up 1:1 with the final filenames in `supabase/migrations/`) - tables `admissions`/`fee_records`/`student_documents` exist, `exam_papers.handed_to_clerk_at`/`handed_to_clerk_by` and `test_results.entered_by_clerk` columns exist, and RPCs `mark_paper_handed_to_clerk`/`clerk_upload_test_results`/`submit_attendance` all exist live.
+- **Clerk dashboard wiring** (`app/clerk/page.tsx`) - the one piece deliberately left for after the merge: wired `getClerkOperationalSummary()` (`lib/clerk/dashboard.ts`, built by the other session specifically for this) into 3 real stat tiles (Pending Documents/New Admissions/Fee Records), a "Tasks" list (top pending items across documents/admissions/fees, with student names resolved via an extra `students` lookup since `student_documents`/`fee_records` only carry `student_id`, not a name - `admissions` already carries `student_name` directly), and a Quick Links grid (Documents/Fees/Admissions/Student Records). Kept the pre-existing greeting/roster-by-class/staff-records sections unchanged below.
+
+**Build gates**: `npx tsc --noEmit`, `npm run lint`, and `npm run build` all clean (65 routes, including all new `/clerk/documents`, `/clerk/admissions`, `/clerk/fees`, `/clerk/marks`, `/clerk/attendance` routes).
+
+### Not yet independently verified
+- Live click-through of the wired clerk dashboard and the new Phase 3/4 pages as the actual clerk/teacher test accounts (same password constraint noted throughout this file) - RLS/RPC authorization was already verified live by the other session per `VERIFICATION_PHASE3_4.md`, but the visual result of this session's dashboard wiring has not been clicked through by a human yet.
+- `app/clerk/layout.tsx`'s new nav labels ("Documents", "Admissions", "Fees", "Enter Marks", "Attendance") are hardcoded English strings rather than routed through `t()` like the rest of the nav array - a minor i18n inconsistency introduced by the other session, not blocking but worth fixing in a follow-up pass alongside adding Urdu equivalents.
