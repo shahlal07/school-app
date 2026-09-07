@@ -46,8 +46,8 @@ const STATUS_VARIANT: Record<ExamSetStatus, "success" | "warning" | "danger" | "
 
 const IN_PROGRESS_STATUSES: ExamSetStatus[] = ["planned", "active", "awaiting_completion"];
 
-function formatScope(scope: string): string {
-  return scope.replace(/_/g, " ");
+function formatScope(scope: string, t: (key: string) => string): string {
+  return t(`coordinator.examSetReport.assessmentScopeLabel.${scope}`) || scope.replace(/_/g, " ");
 }
 
 export default async function CoordinatorExamSetsPage() {
@@ -167,7 +167,7 @@ export default async function CoordinatorExamSetsPage() {
                       </Badge>
                     </div>
                     <p className="mt-1 text-xs text-neutral-500">
-                      {formatScope(latestSet.assessment_scope)}
+                      {formatScope(latestSet.assessment_scope, t)}
                       {latestSet.started_on ? <> · {t("coordinator.examSets.startedWord")} <Bdi>{latestSet.started_on}</Bdi></> : ""}
                       {latestSet.completed_on ? <> · {t("coordinator.examSets.completedWord")} <Bdi>{latestSet.completed_on}</Bdi></> : ""}
                     </p>

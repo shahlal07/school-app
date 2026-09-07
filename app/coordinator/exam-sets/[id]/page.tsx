@@ -9,8 +9,8 @@ import { DownloadWorkbookButton } from "./download-workbook-button";
 import { getT } from "@/lib/i18n/get-translator";
 import { Bdi } from "@/components/shared/bdi";
 
-function formatScope(scope: string): string {
-  return scope.replace(/_/g, " ");
+function formatScope(scope: string, t: (key: string) => string): string {
+  return t(`coordinator.examSetReport.assessmentScopeLabel.${scope}`) || scope.replace(/_/g, " ");
 }
 
 function formatPct(value: number | null): string {
@@ -49,7 +49,7 @@ export default async function ExamSetReportPage({ params }: { params: { id: stri
           <Bdi>{klass?.name ?? t("coordinator.fallback.unknownClass")}</Bdi> · {t("coordinator.examSets.setWord")} #{examSet.set_number}
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          {formatScope(examSet.assessment_scope)} {t("coordinator.examSetReport.performanceReportSuffix")}
+          {formatScope(examSet.assessment_scope, t)} {t("coordinator.examSetReport.performanceReportSuffix")}
         </p>
       </div>
       <Link
@@ -104,7 +104,7 @@ export default async function ExamSetReportPage({ params }: { params: { id: stri
             <div>
               <dt className="text-xs text-neutral-500">{t("coordinator.examSetReport.assessmentScope")}</dt>
               <dd className="text-sm font-medium text-neutral-900">
-                {formatScope(examSet.assessment_scope)}
+                {formatScope(examSet.assessment_scope, t)}
               </dd>
             </div>
             <div>

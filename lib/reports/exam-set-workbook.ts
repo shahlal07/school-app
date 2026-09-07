@@ -5,6 +5,9 @@ import type {
   ResultInput,
   StudentInput
 } from "@/lib/examination/exam-set-analytics";
+import type { Locale } from "@/lib/i18n/types";
+
+type Translator = (key: string) => string;
 
 /**
  * Builds the printable Excel workbook for one completed exam set (Phase E
@@ -62,64 +65,82 @@ export async function buildExamSetWorkbook(
   report: ExamSetReport,
   subjects: ExamSetSubjectSlot[],
   students: StudentInput[],
-  results: ResultInput[]
+  results: ResultInput[],
+  t: Translator,
+  locale: Locale
 ): Promise<Buffer> {
+  const wb = "coordinator.examSetWorkbook.";
+  const rtl = locale === "ur";
+  const dash = t(`${wb}dash`);
+  const assessmentScopeLabel =
+    t(`coordinator.examSetReport.assessmentScopeLabel.${meta.assessmentScope}`) ||
+    meta.assessmentScope.replace(/_/g, " ");
+
+  function sheetView() {
+    return rtl ? { showGridLines: false, rightToLeft: true } : { showGridLines: false };
+  }
+  function frozenSheetView() {
+    return rtl
+      ? { state: "frozen" as const, ySplit: 1, showGridLines: false, rightToLeft: true }
+      : { state: "frozen" as const, ySplit: 1, showGridLines: false };
+  }
+
   const workbook = new ExcelJS.Workbook();
   workbook.creator = meta.schoolName;
   workbook.created = meta.generatedAt;
-  const printTitle = `${meta.schoolName} — ${meta.className} — Exam Set #${meta.setNumber}`;
+  const printTitle = `${meta.schoolName} — ${meta.className} — ${t(`${wb}examSetPrefix`)} #${meta.setNumber}`;
 
   // ---- Sheet 1: Executive Summary ----
-  const summary = workbook.addWorksheet("Executive Summary", { views: [{ showGridLines: false }] });
+  const summary = workbook.addWorksheet(t(`${wb}sheetExecutiveSummary`), { views: [sheetView()] });
   applyLandscapePrint(summary, printTitle);
   summary.columns = [{ width: 28 }, { width: 40 }];
   const summaryRows: [string, string][] = [
-    ["School", meta.schoolName],
-    ["Exam Set", `#${meta.setNumber}`],
-    ["Class", meta.className],
-    ["Assessment stage", meta.assessmentScope.replace(/_/g, " ")],
-    ["Period", `${meta.startedOn ?? "—"} to ${meta.completedOn ?? "—"}`],
-    ["Subjects completed", `${subjects.length}`],
-    ["Students", `${report.totalStudents}`],
-    ["Overall average", pct(report.overallAverage)],
-    ["Overall pass rate", pct(report.overallPassRate)],
+    [t(`${wb}labelSchool`), meta.schoolName],
+    [t(`${wb}labelExamSet`), `#${meta.setNumber}`],
+    [t(`${wb}labelClass`), meta.className],
+    [t(`${wb}labelAssessmentStage`), assessmentScopeLabel],
+    [t(`${wb}labelPeriod`), `${meta.startedOn ?? dash} ${t(`${wb}to`)} ${meta.completedOn ?? dash}`],
+    [t(`${wb}labelSubjectsCompleted`), `${subjects.length}`],
+    [t(`${wb}labelStudents`), `${report.totalStudents}`],
+    [t(`${wb}labelOverallAverage`), pct(report.overallAverage)],
+    [t(`${wb}labelOverallPassRate`), pct(report.overallPassRate)],
     [
-      "Top performer",
+      t(`${wb}labelTopPerformer`),
       report.rankings[0]
         ? `${report.rankings[0].name} (#${report.rankings[0].rollNo}) — ${report.rankings[0].percentage}%`
-        : "—"
+        : dash
     ],
     [
-      "Weakest subject",
-      report.weakestSubject ? `${report.weakestSubject.subjectName} — ${pct(report.weakestSubject.average)}` : "—"
+      t(`${wb}labelWeakestSubject`),
+      report.weakestSubject ? `${report.weakestSubject.subjectName} — ${pct(report.weakestSubject.average)}` : dash
     ],
     [
-      "Strongest subject",
-      report.strongestSubject ? `${report.strongestSubject.subjectName} — ${pct(report.strongestSubject.average)}` : "—"
+      t(`${wb}labelStrongestSubject`),
+      report.strongestSubject ? `${report.strongestSubject.subjectName} — ${pct(report.strongestSubject.average)}` : dash
     ],
-    ["Students requiring attention", `${report.studentsRequiringAttention.length}`],
-    ["Generated", meta.generatedAt.toISOString().slice(0, 19).replace("T", " ")],
-    ["Finalized by", meta.finalizedByName ?? "—"]
+    [t(`${wb}labelStudentsRequiringAttention`), `${report.studentsRequiringAttention.length}`],
+    [t(`${wb}labelGenerated`), meta.generatedAt.toISOString().slice(0, 19).replace("T", " ")],
+    [t(`${wb}labelFinalizedBy`), meta.finalizedByName ?? dash]
   ];
   for (const [label, value] of summaryRows) {
     const row = summary.addRow([label, value]);
     row.getCell(1).font = { bold: true };
   }
   summary.addRow([]);
-  summary.addRow(["Sign-off:", "________________________"]);
+  summary.addRow([t(`${wb}signOff`), "________________________"]);
 
   // ---- Sheet 2: Student Rankings (full roster, per-subject matrix) ----
-  const rankSheet = workbook.addWorksheet("Student Rankings", { views: [{ state: "frozen", ySplit: 1, showGridLines: false }] });
+  const rankSheet = workbook.addWorksheet(t(`${wb}sheetStudentRankings`), { views: [frozenSheetView()] });
   applyLandscapePrint(rankSheet, printTitle);
   const sortedSubjects = [...subjects].sort((a, b) => a.sequence - b.sequence);
   const rankHeader = [
-    "Rank",
-    "Roll No",
-    "Student",
+    t(`${wb}colRank`),
+    t(`${wb}colRollNo`),
+    t(`${wb}colStudent`),
     ...sortedSubjects.map((s) => s.subjectName),
-    "Total",
-    "Percentage",
-    "Status"
+    t(`${wb}colTotal`),
+    t(`${wb}colPercentage`),
+    t(`${wb}colStatus`)
   ];
   rankSheet.columns = rankHeader.map((h, i) => ({
     header: h,
@@ -133,11 +154,11 @@ export async function buildExamSetWorkbook(
 
   report.rankings.forEach((ranking, index) => {
     const subjectCells = sortedSubjects.map((slot) => {
-      if (!slot.scheduleItemId) return "—";
+      if (!slot.scheduleItemId) return dash;
       const r = resultsByScheduleAndStudent.get(`${slot.scheduleItemId}:${ranking.studentId}`);
-      if (!r) return "—";
-      if (r.isAbsent) return "Absent";
-      return r.marksObtained ?? "—";
+      if (!r) return dash;
+      if (r.isAbsent) return t(`${wb}absent`);
+      return r.marksObtained ?? dash;
     });
     const row = rankSheet.addRow([
       index + 1,
@@ -146,7 +167,7 @@ export async function buildExamSetWorkbook(
       ...subjectCells,
       `${ranking.totalObtained}/${ranking.totalPossible}`,
       `${ranking.percentage}%`,
-      ranking.subjectFailures > 0 ? `${ranking.subjectFailures} failed` : "Pass"
+      ranking.subjectFailures > 0 ? `${ranking.subjectFailures} ${t(`${wb}failedSuffix`)}` : t(`${wb}pass`)
     ]);
     if (index % 2 === 1) {
       row.eachCell((cell) => {
@@ -156,72 +177,78 @@ export async function buildExamSetWorkbook(
   });
 
   // ---- Sheet 3: Subject Analysis ----
-  const subjectSheet = workbook.addWorksheet("Subject Analysis", { views: [{ state: "frozen", ySplit: 1, showGridLines: false }] });
+  const subjectSheet = workbook.addWorksheet(t(`${wb}sheetSubjectAnalysis`), { views: [frozenSheetView()] });
   applyLandscapePrint(subjectSheet, printTitle);
   subjectSheet.columns = [
-    { header: "Subject", key: "subject", width: 22 },
-    { header: "Teacher", key: "teacher", width: 20 },
-    { header: "Average", key: "average", width: 12 },
-    { header: "Pass Rate", key: "passRate", width: 12 },
-    { header: "Highest", key: "highest", width: 12 },
-    { header: "Lowest", key: "lowest", width: 12 },
-    { header: "Failures", key: "failures", width: 10 },
-    { header: "Graded", key: "graded", width: 10 },
-    { header: "Change vs Previous Set", key: "change", width: 20 }
+    { header: t(`${wb}colSubject`), key: "subject", width: 22 },
+    { header: t(`${wb}colTeacher`), key: "teacher", width: 20 },
+    { header: t(`${wb}colAverage`), key: "average", width: 12 },
+    { header: t(`${wb}colPassRate`), key: "passRate", width: 12 },
+    { header: t(`${wb}colHighest`), key: "highest", width: 12 },
+    { header: t(`${wb}colLowest`), key: "lowest", width: 12 },
+    { header: t(`${wb}colFailures`), key: "failures", width: 10 },
+    { header: t(`${wb}colGraded`), key: "graded", width: 10 },
+    { header: t(`${wb}colChangeVsPreviousSet`), key: "change", width: 20 }
   ];
   styleHeaderRow(subjectSheet.getRow(1));
   for (const s of report.subjects) {
     subjectSheet.addRow({
       subject: s.subjectName,
-      teacher: s.teacherName ?? "Unassigned",
+      teacher: s.teacherName ?? t(`${wb}unassigned`),
       average: pct(s.average),
       passRate: pct(s.passRate),
       highest: pct(s.highest),
       lowest: pct(s.lowest),
       failures: s.failureCount,
       graded: `${s.gradedCount}/${s.totalStudents}`,
-      change: s.changeVsPreviousSet === null ? "First set" : `${s.changeVsPreviousSet > 0 ? "+" : ""}${s.changeVsPreviousSet} pp`
+      change:
+        s.changeVsPreviousSet === null
+          ? t(`${wb}firstSet`)
+          : `${s.changeVsPreviousSet > 0 ? "+" : ""}${s.changeVsPreviousSet} ${t(`${wb}ppSuffix`)}`
     });
   }
 
   // ---- Sheet 4: Teacher Performance ----
-  const teacherSheet = workbook.addWorksheet("Teacher Performance", { views: [{ state: "frozen", ySplit: 1, showGridLines: false }] });
+  const teacherSheet = workbook.addWorksheet(t(`${wb}sheetTeacherPerformance`), { views: [frozenSheetView()] });
   applyLandscapePrint(teacherSheet, printTitle);
   teacherSheet.columns = [
-    { header: "Teacher", key: "teacher", width: 22 },
-    { header: "Class", key: "klass", width: 14 },
-    { header: "Subject", key: "subject", width: 20 },
-    { header: "Students", key: "students", width: 12 },
-    { header: "Average", key: "average", width: 12 },
-    { header: "Pass Rate", key: "passRate", width: 12 },
-    { header: "Change vs Previous Set", key: "change", width: 20 }
+    { header: t(`${wb}colTeacher`), key: "teacher", width: 22 },
+    { header: t(`${wb}colClass`), key: "klass", width: 14 },
+    { header: t(`${wb}colSubject`), key: "subject", width: 20 },
+    { header: t(`${wb}labelStudents`), key: "students", width: 12 },
+    { header: t(`${wb}colAverage`), key: "average", width: 12 },
+    { header: t(`${wb}colPassRate`), key: "passRate", width: 12 },
+    { header: t(`${wb}colChangeVsPreviousSet`), key: "change", width: 20 }
   ];
   styleHeaderRow(teacherSheet.getRow(1));
   for (const s of report.subjects) {
     teacherSheet.addRow({
-      teacher: s.teacherName ?? "Unassigned",
+      teacher: s.teacherName ?? t(`${wb}unassigned`),
       klass: meta.className,
       subject: s.subjectName,
       students: s.totalStudents,
       average: pct(s.average),
       passRate: pct(s.passRate),
-      change: s.changeVsPreviousSet === null ? "First set" : `${s.changeVsPreviousSet > 0 ? "+" : ""}${s.changeVsPreviousSet} pp`
+      change:
+        s.changeVsPreviousSet === null
+          ? t(`${wb}firstSet`)
+          : `${s.changeVsPreviousSet > 0 ? "+" : ""}${s.changeVsPreviousSet} ${t(`${wb}ppSuffix`)}`
     });
   }
 
   // ---- Sheet 5: At-Risk Students ----
-  const riskSheet = workbook.addWorksheet("At-Risk Students", { views: [{ state: "frozen", ySplit: 1, showGridLines: false }] });
+  const riskSheet = workbook.addWorksheet(t(`${wb}sheetAtRiskStudents`), { views: [frozenSheetView()] });
   applyLandscapePrint(riskSheet, printTitle);
   riskSheet.columns = [
-    { header: "Roll No", key: "rollNo", width: 14 },
-    { header: "Student", key: "name", width: 24 },
-    { header: "Percentage", key: "percentage", width: 14 },
-    { header: "Subject Failures", key: "failures", width: 16 },
-    { header: "Reason", key: "reason", width: 46 }
+    { header: t(`${wb}colRollNo`), key: "rollNo", width: 14 },
+    { header: t(`${wb}colStudent`), key: "name", width: 24 },
+    { header: t(`${wb}colPercentage`), key: "percentage", width: 14 },
+    { header: t(`${wb}colSubjectFailures`), key: "failures", width: 16 },
+    { header: t(`${wb}colReason`), key: "reason", width: 46 }
   ];
   styleHeaderRow(riskSheet.getRow(1));
   if (report.studentsRequiringAttention.length === 0) {
-    riskSheet.addRow(["—", "No students flagged this set", "—", "—", "—"]);
+    riskSheet.addRow([dash, t(`${wb}noStudentsFlaggedThisSet`), dash, dash, dash]);
   } else {
     for (const s of report.studentsRequiringAttention) {
       riskSheet.addRow({
@@ -235,14 +262,14 @@ export async function buildExamSetWorkbook(
   }
 
   // ---- Sheet 6: Top Performers ----
-  const topSheet = workbook.addWorksheet("Top Performers", { views: [{ state: "frozen", ySplit: 1, showGridLines: false }] });
+  const topSheet = workbook.addWorksheet(t(`${wb}sheetTopPerformers`), { views: [frozenSheetView()] });
   applyLandscapePrint(topSheet, printTitle);
   topSheet.columns = [
-    { header: "Rank", key: "rank", width: 10 },
-    { header: "Roll No", key: "rollNo", width: 14 },
-    { header: "Student", key: "name", width: 24 },
-    { header: "Total", key: "total", width: 16 },
-    { header: "Percentage", key: "percentage", width: 14 }
+    { header: t(`${wb}colRank`), key: "rank", width: 10 },
+    { header: t(`${wb}colRollNo`), key: "rollNo", width: 14 },
+    { header: t(`${wb}colStudent`), key: "name", width: 24 },
+    { header: t(`${wb}colTotal`), key: "total", width: 16 },
+    { header: t(`${wb}colPercentage`), key: "percentage", width: 14 }
   ];
   styleHeaderRow(topSheet.getRow(1));
   report.rankings.slice(0, 20).forEach((r, index) => {
@@ -256,26 +283,26 @@ export async function buildExamSetWorkbook(
   });
 
   // ---- Sheet 7: Exceptions ----
-  const exceptionsSheet = workbook.addWorksheet("Exceptions", { views: [{ state: "frozen", ySplit: 1, showGridLines: false }] });
+  const exceptionsSheet = workbook.addWorksheet(t(`${wb}sheetExceptions`), { views: [frozenSheetView()] });
   applyLandscapePrint(exceptionsSheet, printTitle);
   exceptionsSheet.columns = [
-    { header: "Subject", key: "subject", width: 22 },
-    { header: "Student", key: "student", width: 24 },
-    { header: "Roll No", key: "rollNo", width: 14 },
-    { header: "Issue", key: "issue", width: 30 }
+    { header: t(`${wb}colSubject`), key: "subject", width: 22 },
+    { header: t(`${wb}colStudent`), key: "student", width: 24 },
+    { header: t(`${wb}colRollNo`), key: "rollNo", width: 14 },
+    { header: t(`${wb}colIssue`), key: "issue", width: 30 }
   ];
   styleHeaderRow(exceptionsSheet.getRow(1));
   const studentById = new Map(students.map((s) => [s.studentId, s]));
   let exceptionCount = 0;
   for (const slot of sortedSubjects) {
     if (!slot.scheduleItemId) {
-      exceptionsSheet.addRow({ subject: slot.subjectName, student: "—", rollNo: "—", issue: "No linked schedule item" });
+      exceptionsSheet.addRow({ subject: slot.subjectName, student: dash, rollNo: dash, issue: t(`${wb}noLinkedScheduleItem`) });
       exceptionCount += 1;
       continue;
     }
     const rows = results.filter((r) => r.scheduleItemId === slot.scheduleItemId);
     if (rows.length === 0) {
-      exceptionsSheet.addRow({ subject: slot.subjectName, student: "—", rollNo: "—", issue: "No results recorded" });
+      exceptionsSheet.addRow({ subject: slot.subjectName, student: dash, rollNo: dash, issue: t(`${wb}noResultsRecorded`) });
       exceptionCount += 1;
       continue;
     }
@@ -284,16 +311,16 @@ export async function buildExamSetWorkbook(
         const student = studentById.get(r.studentId);
         exceptionsSheet.addRow({
           subject: slot.subjectName,
-          student: student?.name ?? "Unknown",
-          rollNo: student?.rollNo ?? "—",
-          issue: "Absent"
+          student: student?.name ?? t(`${wb}unknownStudent`),
+          rollNo: student?.rollNo ?? dash,
+          issue: t(`${wb}absent`)
         });
         exceptionCount += 1;
       }
     }
   }
   if (exceptionCount === 0) {
-    exceptionsSheet.addRow({ subject: "—", student: "—", rollNo: "—", issue: "No exceptions - all records complete" });
+    exceptionsSheet.addRow({ subject: dash, student: dash, rollNo: dash, issue: t(`${wb}noExceptionsAllComplete`) });
   }
 
   const buffer = await workbook.xlsx.writeBuffer();

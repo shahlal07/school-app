@@ -3,6 +3,8 @@ import { getCurrentProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getFullExamSetReport } from "@/lib/examination/exam-set-report-data";
 import { buildExamSetWorkbook } from "@/lib/reports/exam-set-workbook";
+import { getT } from "@/lib/i18n/get-translator";
+import { getLocale } from "@/lib/i18n/get-locale";
 
 /**
  * Streams the printable Excel workbook (Phase E) for one completed exam
@@ -38,6 +40,8 @@ export async function GET(
     .maybeSingle();
   const schoolName = (schoolSettingRes.data?.value as string | undefined) ?? "School OS";
 
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+
   const buffer = await buildExamSetWorkbook(
     {
       schoolName,
@@ -52,7 +56,9 @@ export async function GET(
     full.report,
     full.subjectSlots,
     full.studentInputs,
-    full.resultInputs
+    full.resultInputs,
+    t,
+    locale
   );
 
   const filename = `Exam_Set_${String(full.examSet.set_number).padStart(3, "0")}_${(full.klass?.name ?? "class").replace(/[^a-zA-Z0-9-]+/g, "_")}.xlsx`;
