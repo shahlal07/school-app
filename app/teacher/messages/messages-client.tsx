@@ -55,7 +55,11 @@ function TeacherMessagesInner({ teacherUserId, owner, messages }: TeacherMessage
       <div className="min-h-[260px] flex-1 overflow-y-auto rounded-2xl border border-neutral-200 bg-white px-3 py-4">
         {messages.length === 0 ? <EmptyState title={t("teacher.messages.emptyTitle")} description={t("teacher.messages.emptyDescription")} /> : <ChatThread messages={messages} currentUserId={teacherUserId} />}
       </div>
-      <form onSubmit={handleReply} className="sticky bottom-20 flex items-end gap-2 rounded-2xl border border-neutral-200 bg-white p-2 shadow-sm">
+      <form
+        onSubmit={handleReply}
+        className="sticky z-50 flex items-end gap-2 rounded-2xl border border-neutral-200 bg-white p-2 shadow-sm"
+        style={{ bottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}
+      >
         <div className="min-w-0 flex-1">
           <Textarea label={t("teacher.messages.replyLabel")} className="min-h-[44px]" value={replyBody} onChange={(event) => setReplyBody(event.target.value)} placeholder={t("teacher.messages.replyPlaceholder")} required disabled={!owner} />
         </div>
