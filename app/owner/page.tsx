@@ -3,6 +3,8 @@ import Link from "next/link";
 import type { Student } from "@/types/examination";
 import { createClient } from "@/lib/supabase/server";
 import { getAcademicIntelligenceData } from "@/lib/examination/academic-intelligence-data";
+import { getDailyAttendanceReport } from "@/lib/attendance/report";
+import { getAttendanceAcademicSignals } from "@/lib/attendance/integration";
 import {
   computeExamSetReport,
   type ExamSetSubjectSlot,
@@ -12,36 +14,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { AlertCard } from "@/components/examination/alert-card";
-import type { AlertRow, AlertWithTeacher } from "@/components/examination/alert-types";
 import { getT } from "@/lib/i18n/get-translator";
 import { Bdi } from "@/components/shared/bdi";
-
-interface StatCard {
-  label: string;
-  value: number;
-  href: string;
-}
-
-interface ScheduleItemBriefRow {
-  id: string;
-  class_id: string;
-  subject_id: string;
-  teacher_id: string | null;
-  test_type: string;
-  status: string;
-  scheduled_date: string;
-  title: string;
-}
-
-interface ExamPaperBriefRow {
-  status: string;
-  print_status: string | null;
-}
-
-interface ResultSubmissionBriefRow {
-  status: string;
-}
 
 interface NameRow {
   id: string;
@@ -55,6 +29,7 @@ interface ExamSetRow {
   class_id: string;
   set_number: number;
   status: ExamSetStatus;
+  completed_on: string | null;
 }
 
 interface ExamSetSubjectRow {
@@ -84,247 +59,307 @@ interface ExamCycleCard {
   examSetId: string;
   className: string;
   setNumber: number;
-  dayLabel: string;
+  doneSlots: number;
+  totalSlots: number;
   nextSubjectLabel: string;
   overallAverage: number | null;
+  examAttendancePct: number | null;
+  resultCompletionPct: number | null;
 }
 
-const secondaryLinkButtonClasses =
-  "inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-neutral-100 px-3 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-200";
+interface TrendPoint {
+  setLabel: string;
+  average: number | null;
+  passRate: number | null;
+}
 
-const linkButtonClasses =
-  "inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-primary-600 px-3 text-sm font-medium text-white transition-colors hover:bg-primary-700";
-
-const URGENT_ALERT_DISPLAY_LIMIT = 5;
+interface ExceptionGroup {
+  severity: "critical" | "high" | "medium" | "operational";
+  count: number;
+  sample: string;
+}
 
 const IN_PROGRESS_EXAM_SET_STATUSES: ExamSetStatus[] = ["planned", "active", "awaiting_completion"];
 
-const scheduleStatusBadgeVariant: Record<string, "success" | "warning" | "danger" | "neutral" | "info"> = {
-  upcoming: "info",
-  scheduled: "info",
-  draft: "neutral",
-  completed: "success",
-  skipped: "neutral",
-  rescheduled: "warning",
-  cancelled: "neutral"
+const EXCEPTION_SEVERITY_STYLE: Record<
+  ExceptionGroup["severity"],
+  { dot: string; text: string; badge: "danger" | "warning" | "info" | "neutral" }
+> = {
+  critical: { dot: "bg-danger-600", text: "text-danger-700", badge: "danger" },
+  high: { dot: "bg-warning-600", text: "text-warning-700", badge: "warning" },
+  medium: { dot: "bg-amber-400", text: "text-amber-700", badge: "warning" },
+  operational: { dot: "bg-primary-500", text: "text-primary-700", badge: "info" }
+};
+
+// DangerRow.severity ("warning"|"high"|"urgent"|"critical") mapped onto the
+// 4-tier exception taxonomy this card displays. "urgent" reads as this
+// school's most operationally pressing tier short of "critical", so it's
+// grouped under "high"; the model's own "high" (structural risk, not yet
+// urgent) reads as "medium" here; "warning" (compliance/process gaps, not
+// academic risk) is "operational".
+const DANGER_SEVERITY_TO_EXCEPTION: Record<string, ExceptionGroup["severity"]> = {
+  critical: "critical",
+  urgent: "high",
+  high: "medium",
+  warning: "operational"
 };
 
 function formatDate(iso: string): string {
   return new Date(`${iso}T00:00:00.000Z`).toLocaleDateString(undefined, {
-    weekday: "short",
     month: "short",
     day: "numeric",
+    year: "numeric",
     timeZone: "UTC"
   });
 }
 
 function healthStatusKey(score: number): { key: "healthy" | "watch" | "critical"; className: string } {
-  if (score >= 80) return { key: "healthy", className: "text-green-600" };
-  if (score >= 60) return { key: "watch", className: "text-amber-600" };
-  return { key: "critical", className: "text-red-600" };
+  if (score >= 80) return { key: "healthy", className: "text-success-600" };
+  if (score >= 60) return { key: "watch", className: "text-warning-600" };
+  return { key: "critical", className: "text-danger-600" };
+}
+
+function trendLabel(delta: number | null): { label: "improving" | "declining" | "steady"; className: string } {
+  if (delta === null || Math.abs(delta) < 0.5) return { label: "steady", className: "bg-neutral-100 text-neutral-600" };
+  return delta > 0
+    ? { label: "improving", className: "bg-success-100 text-success-700" }
+    : { label: "declining", className: "bg-danger-100 text-danger-700" };
+}
+
+function deltaText(delta: number | null, suffix: string): { text: string; positive: boolean | null } {
+  if (delta === null) return { text: "—", positive: null };
+  const rounded = Math.round(delta * 10) / 10;
+  if (rounded === 0) return { text: `0${suffix}`, positive: null };
+  return { text: `${rounded > 0 ? "+" : ""}${rounded}${suffix}`, positive: rounded > 0 };
 }
 
 /**
- * Owner landing page - brought up to the same "executive daily brief"
- * standard as app/principal/page.tsx (built earlier the same day), which
- * this page copies almost verbatim for its alerts/exams-today-tomorrow/
- * operational-backlog sections, retargeted to /owner/... routes since the
- * owner has its own copies of those pages (papers, schedule, alerts,
- * results, academic-health all exist under /owner already). See that file's
- * header comment for the query provenance this mirrors.
- *
- * On top of the principal's shape, the owner gets two owner-specific
- * sections:
- *
- * 1. An "Academic Health hero" at the very top, sourced directly from
- *    lib/examination/academic-intelligence-data.ts's getAcademicIntelligenceData()
- *    - healthScore and healthMetrics are used as-is, not recomputed here.
- *    The full breakdown (topic heatmap, teacher compliance, intervention
- *    effectiveness, etc.) stays exclusive to /owner/academic-health; this
- *    page only shows the headline number plus the 2-3 lowest-scoring
- *    metrics so the score is explainable at a glance.
- *
- * 2. A "Current Exam Cycle" section showing exam_sets rows still in
- *    progress (status planned/active/awaiting_completion), one card per
- *    class with an active cycle - "Day X of Y" plus a running average via
- *    lib/examination/exam-set-analytics.ts's computeExamSetReport (imported
- *    directly, not reimplemented), fed with whatever results exist so far.
- *    Query/join style copied from app/coordinator/exam-sets/page.tsx and
- *    app/coordinator/exam-sets/[id]/page.tsx (read-only reference only -
- *    neither file was touched).
- *
- * This app has very little real academic activity seeded right now, so most
- * sections are expected to legitimately render their honest empty state.
+ * Ring + line-chart + donut are hand-drawn inline SVG (no charting library -
+ * these are the only 3 shapes this page needs, and a library would cost
+ * more than it saves). Every value plotted is a real, already-computed
+ * number passed in as a prop; nothing here invents data.
  */
+function ScoreRing({ value, size = 84, stroke = 9, color = "#0d9488", track = "#eef2f3" }: { value: number; size?: number; stroke?: number; color?: string; track?: string }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - Math.max(0, Math.min(100, value)) / 100);
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={offset}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+    </svg>
+  );
+}
+
+function TrendChart({ points }: { points: TrendPoint[] }) {
+  const width = 520;
+  const height = 150;
+  const padL = 34;
+  const padR = 10;
+  const padT = 10;
+  const padB = 22;
+  const usable = points.filter((p) => p.average !== null || p.passRate !== null);
+  if (usable.length < 2) return null;
+
+  const x = (i: number) => padL + (i * (width - padL - padR)) / Math.max(1, points.length - 1);
+  const y = (v: number) => padT + (height - padT - padB) * (1 - v / 100);
+
+  const line = (key: "average" | "passRate") =>
+    points
+      .map((p, i) => (p[key] === null ? null : `${x(i)},${y(p[key] as number)}`))
+      .filter((v): v is string => v !== null)
+      .join(" ");
+
+  return (
+    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
+      {[0, 25, 50, 75, 100].map((tick) => (
+        <g key={tick}>
+          <line x1={padL} x2={width - padR} y1={y(tick)} y2={y(tick)} stroke="#f1f3f4" strokeWidth={1} />
+          <text x={0} y={y(tick) + 3} fontSize={9} fill="#93a2ac">{tick}%</text>
+        </g>
+      ))}
+      <polyline points={line("average")} fill="none" stroke="#0d9488" strokeWidth={2.5} />
+      <polyline points={line("passRate")} fill="none" stroke="#2563eb" strokeWidth={2.5} strokeDasharray="4 3" />
+      {points.map((p, i) =>
+        p.average === null ? null : <circle key={`a-${i}`} cx={x(i)} cy={y(p.average)} r={3} fill="#0d9488" />
+      )}
+      {points.map((p, i) =>
+        p.passRate === null ? null : <circle key={`p-${i}`} cx={x(i)} cy={y(p.passRate)} r={3} fill="#2563eb" />
+      )}
+      {points.map((p, i) => (
+        <text key={`l-${i}`} x={x(i)} y={height - 4} fontSize={9} fill="#93a2ac" textAnchor="middle">{p.setLabel}</text>
+      ))}
+    </svg>
+  );
+}
+
+function RiskDonut({ academic, attendance, both }: { academic: number; attendance: number; both: number }) {
+  const total = academic + attendance + both;
+  const size = 96;
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  const segs = total === 0
+    ? []
+    : [
+        { value: academic, color: "#0d9488" },
+        { value: attendance, color: "#f59e0b" },
+        { value: both, color: "#dc2626" }
+      ];
+  let offsetAcc = 0;
+  return (
+    <div className="flex items-center gap-4">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#eef2f3" strokeWidth={12} />
+        {segs.map((seg, i) => {
+          const frac = seg.value / total;
+          const dash = frac * c;
+          const el = (
+            <circle
+              key={i}
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              stroke={seg.color}
+              strokeWidth={12}
+              strokeDasharray={`${dash} ${c - dash}`}
+              strokeDashoffset={-offsetAcc}
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            />
+          );
+          offsetAcc += dash;
+          return el;
+        })}
+        <text x={size / 2} y={size / 2 - 2} textAnchor="middle" fontSize={20} fontWeight={700} fill="#0f1b24">{total}</text>
+        <text x={size / 2} y={size / 2 + 14} textAnchor="middle" fontSize={9} fill="#93a2ac">at risk</text>
+      </svg>
+      <div className="flex flex-col gap-1.5 text-xs">
+        <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary-600" /><span className="text-neutral-600">Academic <Bdi>{academic}</Bdi></span></div>
+        <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-warning-500" /><span className="text-neutral-600">Attendance <Bdi>{attendance}</Bdi></span></div>
+        <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-danger-600" /><span className="text-neutral-600">Both <Bdi>{both}</Bdi></span></div>
+      </div>
+    </div>
+  );
+}
+
 export default async function OwnerHomePage() {
   const supabase = createClient();
   const t = await getT();
 
   const now = new Date();
   const todayIso = now.toISOString().slice(0, 10);
-  const tomorrow = new Date(now);
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  const tomorrowIso = tomorrow.toISOString().slice(0, 10);
 
   const [
-    classesCountRes,
-    activeSubjectsCountRes,
-    activeStudentsCountRes,
-    activeTeachersCountRes,
-    allSubjectsRes,
-    allChaptersRes,
-    openAlertsRes,
-    teachersRes,
-    upcomingScheduleRes,
     classNamesRes,
     subjectNamesRes,
-    examPapersRes,
-    resultSubmissionsRes,
     inProgressExamSetsRes,
-    intelligence
+    completedExamSetsRes,
+    allTestResultsRes,
+    dailyAttendance,
+    riskSignals,
+    intelligence,
+    previousSnapshotRes
   ] = await Promise.all([
-    supabase.from("classes").select("id", { count: "exact", head: true }),
-    supabase.from("subjects").select("id", { count: "exact", head: true }).eq("is_active", true),
-    supabase.from("students").select("id", { count: "exact", head: true }).eq("is_active", true),
-    supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "teacher")
-      .eq("is_active", true),
-    supabase.from("subjects").select("id"),
-    supabase.from("chapters").select("subject_id"),
-    // 1. Urgent dangers: open alerts, most recent first - same source as
-    // the principal brief (scan_examination_compliance() is the single
-    // source of truth for danger detection).
-    supabase.from("alerts").select("*").eq("status", "open").order("created_at", { ascending: false }),
-    supabase.from("profiles").select("id, user_id, full_name").eq("role", "teacher"),
-    // 2. Exams today/tomorrow.
-    supabase
-      .from("schedule_items")
-      .select("id, class_id, subject_id, teacher_id, test_type, status, scheduled_date, title")
-      .gte("scheduled_date", todayIso)
-      .lte("scheduled_date", tomorrowIso)
-      .neq("status", "cancelled")
-      .order("scheduled_date", { ascending: true }),
     supabase.from("classes").select("id, name"),
     supabase.from("subjects").select("id, name"),
-    // 3 & 4. Paper approval backlog + print backlog.
-    supabase.from("exam_papers").select("status, print_status"),
-    // 7. Result finalization backlog.
-    supabase.from("result_submissions").select("status"),
-    // Current exam cycle: any exam_sets row still in progress.
     supabase
       .from("exam_sets")
-      .select("id, class_id, set_number, status")
+      .select("id, class_id, set_number, status, completed_on")
       .in("status", IN_PROGRESS_EXAM_SET_STATUSES),
-    // Owner-specific health hero - computed once, shared with
-    // /owner/academic-health, never duplicated here.
-    getAcademicIntelligenceData()
+    supabase
+      .from("exam_sets")
+      .select("id, class_id, set_number, status, completed_on")
+      .eq("status", "completed")
+      .order("completed_on", { ascending: false })
+      .limit(4),
+    supabase.from("test_results").select("marks_obtained, total_marks, is_absent, is_pass"),
+    getDailyAttendanceReport(todayIso),
+    getAttendanceAcademicSignals(50),
+    getAcademicIntelligenceData(),
+    supabase
+      .from("academic_health_snapshots")
+      .select("*")
+      .lt("snapshot_date", todayIso)
+      .order("snapshot_date", { ascending: false })
+      .limit(1)
+      .maybeSingle()
   ]);
 
-  const totalClasses = classesCountRes.count ?? 0;
-  const totalActiveSubjects = activeSubjectsCountRes.count ?? 0;
-  const totalActiveStudents = activeStudentsCountRes.count ?? 0;
-  const totalActiveTeachers = activeTeachersCountRes.count ?? 0;
-
-  const allSubjectIds = ((allSubjectsRes.data as { id: string }[] | null) ?? []).map(
-    (subject) => subject.id
-  );
-  const subjectIdsWithChapters = new Set(
-    ((allChaptersRes.data as { subject_id: string }[] | null) ?? []).map(
-      (chapter) => chapter.subject_id
-    )
-  );
-
-  const totalSubjects = allSubjectIds.length;
-  const subjectsWithSyllabus = allSubjectIds.filter((id) => subjectIdsWithChapters.has(id)).length;
-  const subjectsWithoutSyllabus = totalSubjects - subjectsWithSyllabus;
-
-  // ---- Shared lookups ----
-  const teachers = (teachersRes.data as { id: string; user_id: string; full_name: string }[] | null) ?? [];
-  const teacherNameById = new Map<string, string>();
-  for (const teacher of teachers) {
-    teacherNameById.set(teacher.id, teacher.full_name);
-    teacherNameById.set(teacher.user_id, teacher.full_name);
-  }
   const classNameById = new Map(((classNamesRes.data as NameRow[] | null) ?? []).map((c) => [c.id, c.name]));
-  const subjectNameById = new Map(
-    ((subjectNamesRes.data as NameRow[] | null) ?? []).map((s) => [s.id, s.name])
+  const subjectNameById = new Map(((subjectNamesRes.data as NameRow[] | null) ?? []).map((s) => [s.id, s.name]));
+
+  // ---- School-wide overall average / pass rate (all graded results ever) ----
+  const allResultsRaw = (allTestResultsRes.data as { marks_obtained: number | null; total_marks: number; is_absent: boolean; is_pass: boolean | null }[] | null) ?? [];
+  const gradedResults = allResultsRaw.filter((r) => !r.is_absent && r.marks_obtained !== null && r.total_marks > 0);
+  const overallAverage = gradedResults.length
+    ? Math.round((gradedResults.reduce((sum, r) => sum + (Number(r.marks_obtained) / r.total_marks) * 100, 0) / gradedResults.length) * 10) / 10
+    : null;
+  const overallPassRate = gradedResults.length
+    ? Math.round((gradedResults.filter((r) => r.is_pass === true).length / gradedResults.length) * 1000) / 10
+    : null;
+
+  // ---- Today's school-wide attendance % ----
+  const attendanceRows = dailyAttendance.rows;
+  const attendanceTotals = attendanceRows.reduce(
+    (acc, row) => ({ total: acc.total + row.total_students, present: acc.present + row.present_count }),
+    { total: 0, present: 0 }
   );
+  const attendancePct = attendanceTotals.total > 0 ? Math.round((attendanceTotals.present / attendanceTotals.total) * 1000) / 10 : null;
 
-  // ---- 1. Urgent dangers ----
-  const openAlerts = (openAlertsRes.data as AlertRow[] | null) ?? [];
-  const urgentDangers: AlertWithTeacher[] = openAlerts
-    .filter((a) => a.severity === "urgent" || a.severity === "critical")
-    .map((alert) => ({
-      ...alert,
-      teacherName: alert.teacher_id ? teacherNameById.get(alert.teacher_id) ?? null : null
-    }));
-  const urgentDangersShown = urgentDangers.slice(0, URGENT_ALERT_DISPLAY_LIMIT);
-  const urgentDangersRemaining = urgentDangers.length - urgentDangersShown.length;
+  // ---- Health metrics (fixed order from getAcademicIntelligenceData) ----
+  const [examReadinessMetric, teacherComplianceMetric, resultCompletionMetric, , syllabusProgressMetric] = intelligence.healthMetrics;
+  const studentsNeedingAttentionCount = intelligence.studentRisks.length;
 
-  // ---- 5. Students at risk (count only) ----
-  const studentsAtRiskCount = openAlerts.filter((a) => a.type === "student_performance_warning").length;
-
-  // ---- 6. Teachers behind ----
-  const teachersBehindIds = new Set<string>();
-  for (const alert of openAlerts) {
-    if (alert.type === "teacher_compliance_warning" && alert.teacher_id) {
-      teachersBehindIds.add(alert.teacher_id);
-    }
+  // ---- Risk breakdown (real attendance_academic_signal view) ----
+  const riskByClass = new Map<string, number>();
+  let academicCount = 0;
+  let attendanceCount = 0;
+  let bothCount = 0;
+  for (const row of riskSignals.rows) {
+    if (row.signal === "academic_despite_attendance") academicCount += 1;
+    else if (row.signal === "attendance_primary") attendanceCount += 1;
+    else if (row.signal === "attendance_and_academic") bothCount += 1;
+    riskByClass.set(row.class_id, (riskByClass.get(row.class_id) ?? 0) + 1);
   }
-  const paperOrTestAlertCountByTeacher = new Map<string, number>();
-  for (const alert of openAlerts) {
-    if ((alert.type === "paper_missing" || alert.type === "test_overdue") && alert.teacher_id) {
-      paperOrTestAlertCountByTeacher.set(
-        alert.teacher_id,
-        (paperOrTestAlertCountByTeacher.get(alert.teacher_id) ?? 0) + 1
-      );
+  let highestRiskClassId: string | null = null;
+  let highestRiskCount = 0;
+  riskByClass.forEach((count, classId) => {
+    if (count > highestRiskCount) {
+      highestRiskCount = count;
+      highestRiskClassId = classId;
     }
-  }
-  paperOrTestAlertCountByTeacher.forEach((count, teacherId) => {
-    if (count >= 2) teachersBehindIds.add(teacherId);
   });
-  const teachersBehindCount = teachersBehindIds.size;
 
-  // ---- 2. Exams today/tomorrow ----
-  const upcomingScheduleItems = (upcomingScheduleRes.data as ScheduleItemBriefRow[] | null) ?? [];
-  const examsToday = upcomingScheduleItems.filter((item) => item.scheduled_date === todayIso);
-  const examsTomorrow = upcomingScheduleItems.filter((item) => item.scheduled_date === tomorrowIso);
+  // ---- Key exceptions: real dangers, grouped by the 4-tier taxonomy ----
+  const exceptionBuckets = new Map<ExceptionGroup["severity"], { count: number; labels: Map<string, number> }>();
+  for (const danger of intelligence.dangers) {
+    const bucket = DANGER_SEVERITY_TO_EXCEPTION[danger.severity] ?? "operational";
+    const entry = exceptionBuckets.get(bucket) ?? { count: 0, labels: new Map<string, number>() };
+    entry.count += 1;
+    entry.labels.set(danger.label, (entry.labels.get(danger.label) ?? 0) + 1);
+    exceptionBuckets.set(bucket, entry);
+  }
+  const exceptionOrder: ExceptionGroup["severity"][] = ["critical", "high", "medium", "operational"];
+  const exceptionGroups: ExceptionGroup[] = exceptionOrder
+    .filter((sev) => exceptionBuckets.has(sev))
+    .map((sev) => {
+      const entry = exceptionBuckets.get(sev)!;
+      const topLabel = Array.from(entry.labels.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+      return { severity: sev, count: entry.count, sample: topLabel };
+    });
 
-  // ---- 3 & 4. Paper approval backlog + print backlog ----
-  const examPapers = (examPapersRes.data as ExamPaperBriefRow[] | null) ?? [];
-  const paperApprovalBacklog = examPapers.filter(
-    (p) => p.status === "submitted" || p.status === "under_review"
-  ).length;
-  const printBacklog = examPapers.filter(
-    (p) => p.status === "approved" && p.print_status !== "printed"
-  ).length;
-
-  // ---- 7. Result finalization backlog ----
-  const resultSubmissions = (resultSubmissionsRes.data as ResultSubmissionBriefRow[] | null) ?? [];
-  const resultFinalizationBacklog = resultSubmissions.filter((r) => r.status === "submitted").length;
-
-  const backlogStats: { label: string; value: number; href: string }[] = [
-    { label: t("ownerDashboard.papersAwaitingApproval"), value: paperApprovalBacklog, href: "/owner/papers" },
-    { label: t("ownerDashboard.approvedNotPrinted"), value: printBacklog, href: "/owner/papers" },
-    { label: t("ownerDashboard.studentsAtRisk"), value: studentsAtRiskCount, href: "/owner/alerts" },
-    { label: t("ownerDashboard.teachersBehind"), value: teachersBehindCount, href: "/owner/alerts" },
-    { label: t("ownerDashboard.resultsAwaitingFinalization"), value: resultFinalizationBacklog, href: "/owner/results" }
-  ];
-
-  const statCards: StatCard[] = [
-    { label: t("ownerDashboard.classes"), value: totalClasses, href: "/owner/syllabus" },
-    { label: t("ownerDashboard.activeSubjects"), value: totalActiveSubjects, href: "/owner/syllabus" },
-    { label: t("ownerDashboard.activeStudents"), value: totalActiveStudents, href: "/owner/students" },
-    { label: t("ownerDashboard.activeTeachers"), value: totalActiveTeachers, href: "/owner/teachers" }
-  ];
-
-  const needsTeacher = totalActiveTeachers === 0;
-  const needsStudents = totalActiveStudents === 0;
-  const showSetupPrompts = needsTeacher || needsStudents;
-
-  // ---- Current Exam Cycle ----
+  // ---- Current exam cycle (in-progress sets) ----
   const inProgressExamSets = (inProgressExamSetsRes.data as ExamSetRow[] | null) ?? [];
   let examCycleCards: ExamCycleCard[] = [];
 
@@ -346,9 +381,7 @@ export default async function OwnerHomePage() {
     ]);
 
     const examSetSubjects = (examSetSubjectsRes.data as ExamSetSubjectRow[] | null) ?? [];
-    const scheduleItemIds = examSetSubjects
-      .map((row) => row.schedule_item_id)
-      .filter((id): id is string => Boolean(id));
+    const scheduleItemIds = examSetSubjects.map((row) => row.schedule_item_id).filter((id): id is string => Boolean(id));
 
     const [scheduleItemsRes, resultsRes] = await Promise.all([
       scheduleItemIds.length > 0
@@ -362,9 +395,7 @@ export default async function OwnerHomePage() {
         : Promise.resolve({ data: [] as TestResultRow[] })
     ]);
 
-    const scheduleItemStatusById = new Map(
-      ((scheduleItemsRes.data as ScheduleItemStatusRow[] | null) ?? []).map((si) => [si.id, si.status])
-    );
+    const scheduleItemStatusById = new Map(((scheduleItemsRes.data as ScheduleItemStatusRow[] | null) ?? []).map((si) => [si.id, si.status]));
     const allResults = (resultsRes.data as TestResultRow[] | null) ?? [];
     const resultsByScheduleItem = new Map<string, TestResultRow[]>();
     for (const r of allResults) {
@@ -415,297 +446,417 @@ export default async function OwnerHomePage() {
           teacherId: null,
           teacherName: null
         }));
-        const resultInputs: ResultInput[] = rows.flatMap((row) =>
-          row.schedule_item_id
-            ? (resultsByScheduleItem.get(row.schedule_item_id) ?? []).map((r) => ({
-                scheduleItemId: r.schedule_item_id,
-                studentId: r.student_id,
-                marksObtained: r.marks_obtained,
-                totalMarks: r.total_marks,
-                isAbsent: r.is_absent,
-                isPass: r.is_pass
-              }))
-            : []
-        );
+        const cycleResultRows = rows.flatMap((row) => (row.schedule_item_id ? resultsByScheduleItem.get(row.schedule_item_id) ?? [] : []));
+        const resultInputs: ResultInput[] = cycleResultRows.map((r) => ({
+          scheduleItemId: r.schedule_item_id,
+          studentId: r.student_id,
+          marksObtained: r.marks_obtained,
+          totalMarks: r.total_marks,
+          isAbsent: r.is_absent,
+          isPass: r.is_pass
+        }));
         const studentInputs = studentsByClassId.get(set.class_id) ?? [];
         const report = computeExamSetReport(subjectSlots, studentInputs, resultInputs);
+
+        const gradedRows = cycleResultRows.filter((r) => !r.is_absent && r.marks_obtained !== null);
+        const expectedTotal = studentInputs.length * totalSlots;
+        const resultCompletionPct = expectedTotal > 0 ? Math.round((cycleResultRows.length / expectedTotal) * 1000) / 10 : null;
+        const examAttendancePct = cycleResultRows.length > 0 ? Math.round((gradedRows.length / cycleResultRows.length) * 1000) / 10 : null;
 
         return {
           examSetId: set.id,
           className: classNameById.get(set.class_id) ?? t("owner.papers.unknownClass"),
           setNumber: set.set_number,
-          dayLabel: `${t("owner.dashboard.dayPrefix")} ${doneSlots} ${t("owner.dashboard.ofWord")} ${totalSlots}`,
+          doneSlots,
+          totalSlots,
           nextSubjectLabel,
-          overallAverage: report.overallAverage
+          overallAverage: report.overallAverage,
+          examAttendancePct,
+          resultCompletionPct
         };
       })
       .sort((a, b) => a.className.localeCompare(b.className));
   }
+  const primaryExamCycle = examCycleCards[0] ?? null;
+
+  // ---- Academic performance trend: last 4 completed exam sets, school-wide ----
+  const completedExamSets = ((completedExamSetsRes.data as ExamSetRow[] | null) ?? []).slice().reverse();
+  let trendPoints: TrendPoint[] = [];
+  if (completedExamSets.length > 0) {
+    const completedIds = completedExamSets.map((s) => s.id);
+    const { data: completedSubjectsData } = await supabase
+      .from("exam_set_subjects")
+      .select("exam_set_id, schedule_item_id")
+      .in("exam_set_id", completedIds);
+    const completedSubjects = (completedSubjectsData as { exam_set_id: string; schedule_item_id: string | null }[] | null) ?? [];
+    const scheduleItemIdsBySet = new Map<string, string[]>();
+    const allScheduleItemIds: string[] = [];
+    for (const row of completedSubjects) {
+      if (!row.schedule_item_id) continue;
+      const list = scheduleItemIdsBySet.get(row.exam_set_id) ?? [];
+      list.push(row.schedule_item_id);
+      scheduleItemIdsBySet.set(row.exam_set_id, list);
+      allScheduleItemIds.push(row.schedule_item_id);
+    }
+    const { data: trendResultsData } = allScheduleItemIds.length
+      ? await supabase.from("test_results").select("schedule_item_id, marks_obtained, total_marks, is_absent, is_pass").in("schedule_item_id", allScheduleItemIds)
+      : { data: [] as TestResultRow[] };
+    const trendResults = (trendResultsData as TestResultRow[] | null) ?? [];
+    const resultsByItem = new Map<string, TestResultRow[]>();
+    for (const r of trendResults) {
+      const list = resultsByItem.get(r.schedule_item_id) ?? [];
+      list.push(r);
+      resultsByItem.set(r.schedule_item_id, list);
+    }
+
+    trendPoints = completedExamSets.map((set) => {
+      const itemIds = scheduleItemIdsBySet.get(set.id) ?? [];
+      const rows = itemIds.flatMap((id) => resultsByItem.get(id) ?? []);
+      const graded = rows.filter((r) => !r.is_absent && r.marks_obtained !== null && r.total_marks > 0);
+      const average = graded.length
+        ? Math.round((graded.reduce((sum, r) => sum + (Number(r.marks_obtained) / r.total_marks) * 100, 0) / graded.length) * 10) / 10
+        : null;
+      const passRate = graded.length ? Math.round((graded.filter((r) => r.is_pass === true).length / graded.length) * 1000) / 10 : null;
+      return {
+        setLabel: `${classNameById.get(set.class_id) ?? "?"} #${set.set_number}`,
+        average,
+        passRate
+      };
+    });
+  }
+  const firstTrendPoint = trendPoints.find((p) => p.average !== null) ?? null;
+  const lastTrendPoint = [...trendPoints].reverse().find((p) => p.average !== null) ?? null;
+  const trendAverageDelta = firstTrendPoint && lastTrendPoint && firstTrendPoint !== lastTrendPoint ? (lastTrendPoint.average as number) - (firstTrendPoint.average as number) : null;
+  const firstTrendPassPoint = trendPoints.find((p) => p.passRate !== null) ?? null;
+  const lastTrendPassPoint = [...trendPoints].reverse().find((p) => p.passRate !== null) ?? null;
+  const trendPassDelta = firstTrendPassPoint && lastTrendPassPoint && firstTrendPassPoint !== lastTrendPassPoint ? (lastTrendPassPoint.passRate as number) - (firstTrendPassPoint.passRate as number) : null;
+
+  // ---- Recent activity: real timestamped events ----
+  const [{ data: recentFinalizedRaw }, { data: recentResolvedRaw }] = await Promise.all([
+    supabase.from("exam_sets").select("id, class_id, set_number, completed_on").eq("status", "completed").order("completed_on", { ascending: false }).limit(2),
+    supabase.from("alerts").select("id, message, resolved_at").eq("status", "resolved").order("resolved_at", { ascending: false }).limit(2)
+  ]);
+  type ActivityItem = { id: string; text: string; meta: string; at: string };
+  const activity: ActivityItem[] = [
+    ...(((recentFinalizedRaw as { id: string; class_id: string; set_number: number; completed_on: string | null }[] | null) ?? [])
+      .filter((row) => row.completed_on)
+      .map((row) => ({
+        id: `set-${row.id}`,
+        text: `Set #${row.set_number} finalized`,
+        meta: `${classNameById.get(row.class_id) ?? "?"} · ${formatDate((row.completed_on as string).slice(0, 10))}`,
+        at: row.completed_on as string
+      }))),
+    ...(((recentResolvedRaw as { id: string; message: string; resolved_at: string | null }[] | null) ?? [])
+      .filter((row) => row.resolved_at)
+      .map((row) => ({
+        id: `alert-${row.id}`,
+        text: "Alert resolved",
+        meta: row.message,
+        at: row.resolved_at as string
+      })))
+  ]
+    .sort((a, b) => (a.at < b.at ? 1 : -1))
+    .slice(0, 4);
+
+  // ---- Deltas vs the most recent prior daily snapshot ----
+  const previous = previousSnapshotRes.data as {
+    health_score: number;
+    exam_readiness_score: number;
+    teacher_compliance_score: number;
+    syllabus_progress_score: number;
+    students_at_risk_count: number;
+    attendance_pct: number | null;
+    overall_average: number | null;
+    pass_rate: number | null;
+  } | null;
+
+  const healthScoreDelta = previous ? intelligence.healthScore - previous.health_score : null;
+  const studentsAtRiskDelta = previous ? studentsNeedingAttentionCount - previous.students_at_risk_count : null;
+  const attendanceDelta = previous && previous.attendance_pct !== null && attendancePct !== null ? attendancePct - previous.attendance_pct : null;
+  const examReadinessDelta = previous && examReadinessMetric ? examReadinessMetric.score - previous.exam_readiness_score : null;
+  const teacherComplianceDelta = previous && teacherComplianceMetric ? teacherComplianceMetric.score - previous.teacher_compliance_score : null;
+  const overallAverageDelta = previous && previous.overall_average !== null && overallAverage !== null ? overallAverage - previous.overall_average : null;
+  const passRateDelta = previous && previous.pass_rate !== null && overallPassRate !== null ? overallPassRate - previous.pass_rate : null;
+  const syllabusDelta = previous && syllabusProgressMetric ? syllabusProgressMetric.score - previous.syllabus_progress_score : null;
+
+  // Record today's snapshot so tomorrow's page load has a real baseline to
+  // compare against - upsert keyed on snapshot_date, safe to call on every
+  // page view.
+  await supabase.from("academic_health_snapshots").upsert(
+    {
+      snapshot_date: todayIso,
+      health_score: intelligence.healthScore,
+      exam_readiness_score: examReadinessMetric?.score ?? 0,
+      teacher_compliance_score: teacherComplianceMetric?.score ?? 0,
+      syllabus_progress_score: syllabusProgressMetric?.score ?? 0,
+      result_completion_score: resultCompletionMetric?.score ?? 0,
+      student_performance_score: 0,
+      students_at_risk_count: studentsNeedingAttentionCount,
+      attendance_pct: attendancePct,
+      overall_average: overallAverage,
+      pass_rate: overallPassRate
+    },
+    { onConflict: "snapshot_date" }
+  );
 
   const healthStatus = healthStatusKey(intelligence.healthScore);
-  const lowestHealthMetrics = intelligence.healthMetrics
-    .slice()
-    .sort((a, b) => a.score - b.score)
-    .slice(0, 3);
+  const healthTrend = trendLabel(healthScoreDelta);
+  const academicYear = `${now.getUTCFullYear()}–${String(now.getUTCFullYear() + 1).slice(2)}`;
+  const dayName = now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  const hour = now.getUTCHours();
+  const greetingWord = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <main className="p-4 sm:p-6">
-      {/* Academic Health hero */}
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-neutral-900">{t("ownerDashboard.title")}</h1>
-          <p className="mt-1 text-sm text-neutral-500">{t("ownerDashboard.subtitle")}</p>
+    <main className="flex flex-col gap-4 p-4 sm:p-6">
+      {/* Hero */}
+      <div className="rounded-2xl bg-gradient-to-br from-primary-800 to-primary-700 p-5 text-white shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h1 className="text-lg font-semibold">{greetingWord}, {t("nav.dashboard") === "Dashboard" ? "Owner" : t("nav.dashboard")}</h1>
+            <p className="mt-1 text-sm text-primary-100">{t("ownerDashboard.subtitle")}</p>
+          </div>
+          <div className="text-right text-xs text-primary-100">
+            <p><Bdi>{dayName}</Bdi></p>
+            <p className="mt-0.5">Academic Year <Bdi>{academicYear}</Bdi></p>
+          </div>
         </div>
-        <Link href="/owner/academic-health" className={secondaryLinkButtonClasses}>
-          {t("ownerDashboard.academicHealthScore")} &rarr;
-        </Link>
       </div>
 
-      <Card className="mt-5">
-        <CardHeader>
-          <CardTitle>{t("owner.dashboard.academicHealthCardTitle")}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Academic Health */}
+      <Card>
+        <CardContent className="py-4">
           {intelligence.healthMetrics.length === 0 ? (
-            <EmptyState
-              title={t("intelligence.notEnoughDataForScore")}
-              description={t("intelligence.notEnoughDataForScoreDescription")}
-            />
-          ) : (
-            <div className="flex flex-wrap items-end gap-6">
-              <div>
-                <p className="text-4xl font-semibold text-neutral-900"><Bdi>{intelligence.healthScore}</Bdi></p>
-                <p className="text-sm text-neutral-500">
-                  {t("owner.dashboard.outOf100")} &middot; <span className={`font-medium ${healthStatus.className}`}>{t(`intelligence.${healthStatus.key}`)}</span>
-                </p>
-              </div>
-              <div className="min-w-[260px] flex-1 space-y-1.5">
-                <p className="text-xs font-medium text-neutral-500">{t("intelligence.whatsDraggingScoreDown")}</p>
-                {lowestHealthMetrics.map((metric) => (
-                  <div key={metric.label} className="flex items-baseline justify-between gap-3 text-sm">
-                    <span className="font-medium text-neutral-700">{metric.label}</span>
-                    <span className="text-neutral-500">
-                      {metric.score}% &middot; {metric.detail}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 1. Urgent dangers */}
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle>{t("intelligence.urgentDangers")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {urgentDangersShown.length === 0 ? (
-            <EmptyState
-              title={t("intelligence.nothingUrgent")}
-              description={t("intelligence.noOpenAlerts")}
-            />
+            <EmptyState title={t("intelligence.notEnoughDataForScore")} description={t("intelligence.notEnoughDataForScoreDescription")} />
           ) : (
             <>
-              <ul className="flex flex-col gap-2.5">
-                {urgentDangersShown.map((alert) => (
-                  <li key={alert.id}>
-                    <AlertCard alert={alert} showTeacher />
-                  </li>
-                ))}
-              </ul>
-              {urgentDangersRemaining > 0 && (
-                <Link
-                  href="/owner/alerts"
-                  className="mt-3 inline-block text-sm font-medium text-primary-600 hover:underline"
-                >
-                  <Bdi>{urgentDangersRemaining}</Bdi>{" "}
-                  {urgentDangersRemaining === 1
-                    ? t("owner.dashboard.moreUrgentAlertSingular")
-                    : t("owner.dashboard.moreUrgentAlertPlural")}{" "}
-                  &rarr;
-                </Link>
-              )}
+              <Link href="/owner/academic-health" className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-4">
+                  <ScoreRing value={intelligence.healthScore} color={healthStatus.key === "healthy" ? "#16a34a" : healthStatus.key === "watch" ? "#d97706" : "#dc2626"} />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-neutral-900">Academic Health</p>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${healthTrend.className}`}>
+                        {healthTrend.label === "improving" ? "↑ " : healthTrend.label === "declining" ? "↓ " : ""}{healthTrend.label}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-neutral-500">
+                      {deltaText(healthScoreDelta, "%").text} vs last set
+                    </p>
+                    <p className="mt-1 text-xs text-neutral-500">Overall school performance is {healthTrend.label}.</p>
+                  </div>
+                </div>
+                <span className="text-neutral-300">&rarr;</span>
+              </Link>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <StatTile label={t("intelligence.studentsNeedingAttention")} value={studentsNeedingAttentionCount} delta={deltaText(studentsAtRiskDelta, "")} deltaSuffix="vs last set" invert />
+                <StatTile label="Attendance" value={attendancePct === null ? "—" : `${attendancePct}%`} delta={deltaText(attendanceDelta, "%")} deltaSuffix="vs last month" />
+                <StatTile label={t("intelligence.examReadiness")} value={`${examReadinessMetric?.score ?? 0}%`} delta={deltaText(examReadinessDelta, "%")} deltaSuffix="vs last set" />
+                <StatTile label={t("intelligence.teacherCompliance")} value={`${teacherComplianceMetric?.score ?? 0}%`} delta={deltaText(teacherComplianceDelta, "%")} deltaSuffix="vs last month" />
+              </div>
             </>
           )}
         </CardContent>
       </Card>
 
-      {/* 2. Exams today/tomorrow */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        {(
-          [
-            { title: t("ownerDashboard.examsToday"), empty: t("ownerDashboard.noExamsToday"), items: examsToday },
-            { title: t("ownerDashboard.examsTomorrow"), empty: t("ownerDashboard.noExamsTomorrow"), items: examsTomorrow }
-          ]
-        ).map(({ title, empty, items }) => (
-          <Card key={title}>
-            <CardHeader>
-              <CardTitle>{title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {items.length === 0 ? (
-                <p className="text-sm text-neutral-500">{empty}</p>
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {items.map((item) => (
-                    <li
-                      key={item.id}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-neutral-900"><Bdi>{item.title}</Bdi></p>
-                        <p className="text-xs text-neutral-500">
-                          <Bdi>{classNameById.get(item.class_id) ?? t("owner.papers.unknownClass")}</Bdi> &middot;{" "}
-                          <Bdi>{subjectNameById.get(item.subject_id) ?? t("owner.papers.unknownSubject")}</Bdi> &middot;{" "}
-                          <Bdi>{formatDate(item.scheduled_date)}</Bdi>
-                        </p>
-                      </div>
-                      <Badge variant={scheduleStatusBadgeVariant[item.status] ?? "neutral"}>
-                        <Bdi>{item.status}</Bdi>
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Current Exam Cycle */}
-      <Card className="mt-4">
+      {/* Academic Performance Trend */}
+      <Card>
         <CardHeader>
-          <CardTitle>{t("ownerDashboard.currentExamCycle")}</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Academic Performance Trend</CardTitle>
+            <span className="text-xs text-neutral-400">Last {trendPoints.length || 4} sets</span>
+          </div>
         </CardHeader>
         <CardContent>
-          {examCycleCards.length === 0 ? (
-            <EmptyState
-              title={t("ownerDashboard.noExamCycle")}
-              description={t("ownerDashboard.noExamCycleDescription")}
-            />
+          {trendPoints.length < 2 ? (
+            <EmptyState title="Not enough completed exam sets yet" description="Once at least two exam sets are completed, the trend line will appear here." />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {examCycleCards.map((card) => (
-                <div key={card.examSetId} className="rounded-xl border border-neutral-200 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-neutral-900"><Bdi>{card.className}</Bdi></p>
-                    <Badge variant="neutral">{t("owner.dashboard.setPrefix")} #<Bdi>{card.setNumber}</Bdi></Badge>
-                  </div>
-                  <p className="mt-1 text-xs text-neutral-500"><Bdi>{card.dayLabel}</Bdi></p>
-                  <p className="mt-2 text-sm text-neutral-700">{t("ownerDashboard.nextUp")}: <Bdi>{card.nextSubjectLabel}</Bdi></p>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    {t("ownerDashboard.runningAverage")}:{" "}
-                    {card.overallAverage === null ? t("ownerDashboard.notEnoughGraded") : <Bdi>{card.overallAverage}%</Bdi>}
-                  </p>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+              <div className="min-w-0 flex-1">
+                <TrendChart points={trendPoints} />
+                <div className="mt-2 flex items-center gap-4 text-xs text-neutral-500">
+                  <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary-600" /> Average Percentage</span>
+                  <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-info-600" style={{ background: "#2563eb" }} /> Pass Rate</span>
                 </div>
-              ))}
+              </div>
+              <div className="flex gap-3 lg:flex-col">
+                <div className="flex-1 rounded-xl border border-neutral-200 p-3">
+                  <p className="text-xs text-neutral-500">Average Percentage</p>
+                  <p className={`mt-1 text-lg font-semibold ${deltaText(trendAverageDelta, "%").positive === false ? "text-danger-600" : "text-success-600"}`}>{deltaText(trendAverageDelta, "%").text}</p>
+                  <p className="text-[11px] text-neutral-400">vs {firstTrendPoint?.setLabel ?? "first set"}</p>
+                </div>
+                <div className="flex-1 rounded-xl border border-neutral-200 p-3">
+                  <p className="text-xs text-neutral-500">Pass Rate</p>
+                  <p className={`mt-1 text-lg font-semibold ${deltaText(trendPassDelta, "%").positive === false ? "text-danger-600" : "text-success-600"}`}>{deltaText(trendPassDelta, "%").text}</p>
+                  <p className="text-[11px] text-neutral-400">vs {firstTrendPassPoint?.setLabel ?? "first set"}</p>
+                </div>
+              </div>
             </div>
-          )}
-          {examCycleCards.length === 0 && (
-            <Link href="/coordinator/exam-sets" className={`${secondaryLinkButtonClasses} mt-4`}>
-              {t("ownerDashboard.viewExamSets")}
-            </Link>
           )}
         </CardContent>
       </Card>
 
-      {/* 3-7. Operational backlogs at a glance */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {backlogStats.map((stat) => (
-          <Link key={stat.label} href={stat.href} className="block">
-            <Card className="h-full transition-shadow hover:shadow-md">
-              <CardContent className="py-5">
-                <p
-                  className={`text-2xl font-semibold ${
-                    stat.value > 0 ? "text-neutral-900" : "text-neutral-400"
-                  }`}
-                >
-                  <Bdi>{stat.value}</Bdi>
-                </p>
-                <p className="mt-1 text-sm text-neutral-500">{stat.label}</p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {/* Key Exceptions */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Key Exceptions</CardTitle>
+            <Link href="/owner/alerts" className="text-xs font-medium text-primary-600 hover:underline">View all &rarr;</Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {exceptionGroups.length === 0 ? (
+            <EmptyState title={t("intelligence.nothingUrgent")} description={t("intelligence.noOpenAlerts")} />
+          ) : (
+            <ul className="flex flex-col divide-y divide-neutral-100">
+              {exceptionGroups.map((group) => {
+                const style = EXCEPTION_SEVERITY_STYLE[group.severity];
+                return (
+                  <li key={group.severity} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${style.dot}`} />
+                      <div className="min-w-0">
+                        <p className={`text-xs font-bold uppercase tracking-wide ${style.text}`}>{group.severity}</p>
+                        <p className="truncate text-sm text-neutral-700"><Bdi>{group.sample}</Bdi></p>
+                      </div>
+                    </div>
+                    <Badge variant={style.badge}><Bdi>{group.count}</Bdi></Badge>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* School setup snapshot (previously the whole page) */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {statCards.map((stat) => (
-          <Link key={stat.label} href={stat.href} className="block">
-            <Card className="h-full transition-shadow hover:shadow-md">
-              <CardContent className="py-5">
-                <p className="text-2xl font-semibold text-neutral-900"><Bdi>{stat.value}</Bdi></p>
-                <p className="mt-1 text-sm text-neutral-500">{stat.label}</p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* School Performance */}
         <Card>
-          <CardHeader>
-            <CardTitle>{t("ownerDashboard.syllabusCoverage")}</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>School Performance</CardTitle></CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold text-neutral-900">
-              <Bdi>{subjectsWithSyllabus} {t("owner.dashboard.ofWord")} {totalSubjects}</Bdi>
-            </p>
-            <p className="mt-1 text-sm text-neutral-500">
-              {t("ownerDashboard.subjectsHaveSyllabus")}
-              {subjectsWithoutSyllabus > 0 && (
-                <>
-                  {" "}
-                  <Bdi>{subjectsWithoutSyllabus}</Bdi>{" "}
-                  {subjectsWithoutSyllabus === 1
-                    ? t("owner.dashboard.subjectNeedsChaptersSingular")
-                    : t("owner.dashboard.subjectNeedsChaptersPlural")}
-                </>
-              )}
-            </p>
-            <Link href="/owner/syllabus" className={`${secondaryLinkButtonClasses} mt-4`}>
-              {t("ownerDashboard.manageSyllabus")}
-            </Link>
+            <div className="grid grid-cols-3 gap-2">
+              <MiniStat label="Overall Average" value={overallAverage === null ? "—" : `${overallAverage}%`} delta={deltaText(overallAverageDelta, "%")} />
+              <MiniStat label="Pass Rate" value={overallPassRate === null ? "—" : `${overallPassRate}%`} delta={deltaText(passRateDelta, "%")} />
+              <MiniStat label="Syllabus Coverage" value={`${syllabusProgressMetric?.score ?? 0}%`} delta={deltaText(syllabusDelta, "%")} />
+            </div>
           </CardContent>
         </Card>
 
-        {showSetupPrompts && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("ownerDashboard.getSetUp")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="flex flex-col gap-3">
-                {needsTeacher && (
-                  <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3">
-                    <div>
-                      <p className="text-sm font-medium text-neutral-900">{t("ownerDashboard.inviteTeacher")}</p>
-                      <p className="text-sm text-neutral-500">{t("ownerDashboard.noTeacherAccounts")}</p>
-                    </div>
-                    <Link href="/owner/teachers" className={linkButtonClasses}>
-                      {t("owner.dashboard.inviteTeacherButton")}
-                    </Link>
-                  </li>
+        {/* Exam Cycle Progress */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Exam Cycle Progress</CardTitle>
+              <Link href="/coordinator/exam-sets" className="text-xs font-medium text-primary-600 hover:underline">Details &rarr;</Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!primaryExamCycle ? (
+              <EmptyState title={t("ownerDashboard.noExamCycle")} description={t("ownerDashboard.noExamCycleDescription")} />
+            ) : (
+              <div className="flex items-center gap-4">
+                <ScoreRing
+                  value={primaryExamCycle.totalSlots > 0 ? Math.round((primaryExamCycle.doneSlots / primaryExamCycle.totalSlots) * 100) : 0}
+                  size={72}
+                  stroke={7}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-neutral-900"><Bdi>{primaryExamCycle.className}</Bdi> &middot; {t("owner.dashboard.setPrefix")} #<Bdi>{primaryExamCycle.setNumber}</Bdi></p>
+                  <p className="text-xs text-neutral-500">{t("owner.dashboard.dayPrefix")} <Bdi>{primaryExamCycle.doneSlots}</Bdi> {t("owner.dashboard.ofWord")} <Bdi>{primaryExamCycle.totalSlots}</Bdi></p>
+                  <p className="mt-1 text-xs text-neutral-500">Current Subject: <Bdi>{primaryExamCycle.nextSubjectLabel}</Bdi></p>
+                  <div className="mt-2 flex gap-4 text-xs">
+                    <span className="text-neutral-500">Exam Attendance <b className="text-neutral-800">{primaryExamCycle.examAttendancePct === null ? "—" : `${primaryExamCycle.examAttendancePct}%`}</b></span>
+                    <span className="text-neutral-500">Result Completion <b className="text-neutral-800">{primaryExamCycle.resultCompletionPct === null ? "—" : `${primaryExamCycle.resultCompletionPct}%`}</b></span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Top / at-risk breakdown */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Student Risk Breakdown</CardTitle>
+              <Link href="/owner/performance" className="text-xs font-medium text-primary-600 hover:underline">View all &rarr;</Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {academicCount + attendanceCount + bothCount === 0 ? (
+              <EmptyState title={t("intelligence.noStudentEnoughData")} />
+            ) : (
+              <>
+                <RiskDonut academic={academicCount} attendance={attendanceCount} both={bothCount} />
+                {highestRiskClassId && (
+                  <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-700">
+                    Highest risk: <b><Bdi>{classNameById.get(highestRiskClassId) ?? "—"}</Bdi></b> &middot; <Bdi>{highestRiskCount}</Bdi> students
+                  </p>
                 )}
-                {needsStudents && (
-                  <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-neutral-50 px-4 py-3">
-                    <div>
-                      <p className="text-sm font-medium text-neutral-900">{t("ownerDashboard.addStudents")}</p>
-                      <p className="text-sm text-neutral-500">{t("ownerDashboard.rosterEmpty")}</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader><CardTitle>Recent Activity</CardTitle></CardHeader>
+          <CardContent>
+            {activity.length === 0 ? (
+              <EmptyState title="Nothing to show yet" description="Finalized exam sets and resolved alerts will appear here." />
+            ) : (
+              <ul className="flex flex-col divide-y divide-neutral-100">
+                {activity.map((item) => (
+                  <li key={item.id} className="flex items-start gap-2.5 py-2.5 first:pt-0 last:pb-0">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-success-500" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-neutral-900">{item.text}</p>
+                      <p className="truncate text-xs text-neutral-500"><Bdi>{item.meta}</Bdi></p>
                     </div>
-                    <Link href="/owner/students" className={linkButtonClasses}>
-                      {t("ownerDashboard.addStudents")}
-                    </Link>
                   </li>
-                )}
+                ))}
               </ul>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </CardContent>
+        </Card>
       </div>
     </main>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  delta,
+  deltaSuffix,
+  invert
+}: {
+  label: string;
+  value: string | number;
+  delta: { text: string; positive: boolean | null };
+  deltaSuffix: string;
+  invert?: boolean;
+}) {
+  const positive = invert && delta.positive !== null ? !delta.positive : delta.positive;
+  return (
+    <div className="rounded-xl border border-neutral-200 p-3">
+      <p className="text-[11px] font-medium text-neutral-500">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-neutral-900"><Bdi>{value}</Bdi></p>
+      <p className={`mt-0.5 text-[11px] font-medium ${positive === null ? "text-neutral-400" : positive ? "text-success-600" : "text-danger-600"}`}>
+        {delta.text} <span className="text-neutral-400">{deltaSuffix}</span>
+      </p>
+    </div>
+  );
+}
+
+function MiniStat({ label, value, delta }: { label: string; value: string; delta: { text: string; positive: boolean | null } }) {
+  return (
+    <div className="rounded-xl border border-neutral-200 p-3">
+      <p className="text-[11px] font-medium text-neutral-500">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-neutral-900">{value}</p>
+      <p className={`mt-0.5 text-[11px] font-medium ${delta.positive === null ? "text-neutral-400" : delta.positive ? "text-success-600" : "text-danger-600"}`}>{delta.text}</p>
+    </div>
   );
 }

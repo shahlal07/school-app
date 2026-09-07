@@ -60,7 +60,8 @@ const en = {
     audit: "Audit Log",
     departments: "Departments",
     staff: "Staff",
-    examPrinting: "Exam Printing"
+    examPrinting: "Exam Printing",
+    examination: "Examination"
   },
   status: {
     draft: "Draft",

@@ -65,7 +65,8 @@ const ur: Widen<typeof enCore> = {
     audit: "آڈٹ لاگ",
     departments: "شعبہ جات",
     staff: "عملہ",
-    examPrinting: "امتحانی پرنٹنگ"
+    examPrinting: "امتحانی پرنٹنگ",
+    examination: "امتحانات"
   },
   status: {
     draft: "مسودہ",

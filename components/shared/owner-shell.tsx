@@ -143,8 +143,9 @@ export function OwnerShell({ children, ownerName }: OwnerShellProps) {
   const bottomNavItems: BottomNavItemConfig[] = [
     { label: t("nav.home"), href: "/owner", icon: "home" },
     { label: t("nav.attendance"), href: "/owner/attendance", icon: "user" },
-    { label: t("nav.alerts"), href: "/owner/alerts", icon: "bell" },
-    { label: t("nav.messages"), href: "/owner/messages", icon: "message-circle" },
+    { label: t("nav.examination"), href: "/owner/schedule", icon: "book-open" },
+    { label: t("nav.students"), href: "/owner/students", icon: "users" },
+    { label: t("nav.reports"), href: "/owner/reports", icon: "bar-chart" },
     { label: t("common.view"), href: "#owner-more", icon: "menu" }
   ];
 
