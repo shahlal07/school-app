@@ -483,9 +483,9 @@ export default async function OwnerHomePage() {
                 <p className="text-xs font-medium text-neutral-500">{t("intelligence.whatsDraggingScoreDown")}</p>
                 {lowestHealthMetrics.map((metric) => (
                   <div key={metric.label} className="flex items-baseline justify-between gap-3 text-sm">
-                    <span className="font-medium text-neutral-700"><Bdi>{metric.label}</Bdi></span>
+                    <span className="font-medium text-neutral-700">{metric.label}</span>
                     <span className="text-neutral-500">
-                      <Bdi>{metric.score}%</Bdi> &middot; <Bdi>{metric.detail}</Bdi>
+                      {metric.score}% &middot; {metric.detail}
                     </span>
                   </div>
                 ))}
