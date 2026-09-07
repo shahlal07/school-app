@@ -96,7 +96,10 @@ const coordinator = {
   },
   schedule: {
     title: "شیڈول جنریٹر",
-    subtitle: "کسی مضمون کے نصاب سے ٹیسٹ شیڈول بنائیں اور جو پہلے سے مقرر ہے وہ دیکھیں۔"
+    subtitle: "کسی مضمون کے نصاب سے ٹیسٹ شیڈول بنائیں اور جو پہلے سے مقرر ہے وہ دیکھیں۔",
+    currentScheduleHeading: "موجودہ شیڈول",
+    currentScheduleEmptyDescription: "ابھی تک کسی جماعت کے لیے امتحانی شیڈول تیار نہیں کیا گیا۔ نیچے دیے گئے جنریٹر سے ایک بنائیں۔",
+    generateHeading: "نیا شیڈول بنائیں"
   },
   scheduleGenerator: {
     daySun: "اتوار",

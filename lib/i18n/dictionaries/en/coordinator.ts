@@ -98,7 +98,10 @@ const coordinator = {
   },
   schedule: {
     title: "Schedule generator",
-    subtitle: "Generate a test schedule from a subject's syllabus and view what's already scheduled."
+    subtitle: "Generate a test schedule from a subject's syllabus and view what's already scheduled.",
+    currentScheduleHeading: "Current schedule",
+    currentScheduleEmptyDescription: "No exam schedule has been generated for any class yet. Use the generator below to create one.",
+    generateHeading: "Generate a new schedule"
   },
   scheduleGenerator: {
     daySun: "Sun",

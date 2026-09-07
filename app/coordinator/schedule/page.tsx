@@ -3,7 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { classOrderIndex } from "@/components/examination/constants";
 import { ScheduleGenerator } from "@/components/examination/schedule-generator";
 import type { ChapterWithTopics } from "@/lib/scheduling/generate-schedule";
-import type { ScheduleItemRow } from "@/components/examination/schedule-list";
+import { ExistingScheduleList, type ScheduleItemRow } from "@/components/examination/schedule-list";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Bdi } from "@/components/shared/bdi";
 import { getT } from "@/lib/i18n/get-translator";
 
 /**
@@ -90,6 +93,14 @@ export default async function CoordinatorSchedulePage() {
     (scheduleItemsBySubject[item.subject_id] ??= []).push(item);
   }
 
+  // ---- Current Schedule: the already-generated schedule, grouped by class
+  // and subject - same read-only building block as
+  // app/principal/schedule/page.tsx. No new query: reuses classes/
+  // subjectsByClass/scheduleItemsBySubject already fetched above. ----
+  const classesWithSchedules = classes.filter((klass) =>
+    (subjectsByClass[klass.id] ?? []).some((subject) => (scheduleItemsBySubject[subject.id] ?? []).length > 0)
+  );
+
   return (
     <main className="p-4 sm:p-6">
       <h1 className="text-xl font-semibold text-neutral-900">{t("coordinator.schedule.title")}</h1>
@@ -98,6 +109,41 @@ export default async function CoordinatorSchedulePage() {
       </p>
 
       <div className="mt-5">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          {t("coordinator.schedule.currentScheduleHeading")}
+        </h2>
+        {classesWithSchedules.length === 0 ? (
+          <EmptyState title={t("emptyStates.nothingScheduledYet")} description={t("coordinator.schedule.currentScheduleEmptyDescription")} />
+        ) : (
+          <div className="flex flex-col gap-4">
+            {classesWithSchedules.map((klass) => {
+              const classSubjects = (subjectsByClass[klass.id] ?? []).filter(
+                (subject) => (scheduleItemsBySubject[subject.id] ?? []).length > 0
+              );
+              return (
+                <Card key={klass.id}>
+                  <CardHeader>
+                    <CardTitle><Bdi>{klass.name}</Bdi></CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-4">
+                    {classSubjects.map((subject) => (
+                      <div key={subject.id}>
+                        <p className="mb-1 text-sm font-medium text-neutral-700"><Bdi>{subject.name}</Bdi></p>
+                        <ExistingScheduleList items={scheduleItemsBySubject[subject.id] ?? []} />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          {t("coordinator.schedule.generateHeading")}
+        </h2>
         <ScheduleGenerator
           classes={classes}
           subjectsByClass={subjectsByClass}

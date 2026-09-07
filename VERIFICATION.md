@@ -147,3 +147,16 @@ Rebuilt 4 of the 5 role dashboards to match a reference screenshot's visual lang
 
 ### Not yet independently verified
 - Live role-account click-through of the 4 rebuilt dashboards has not been done by the assistant - test-role account passwords are owner-set and never seen/typed by the assistant (same constraint noted throughout this file). Confirmed instead: the app boots and the `/login` route renders with no runtime error against the rebuilt code, and every new query reuses already-verified helpers (`getAcademicIntelligenceData`, `getDailyAttendanceReport`, `getStaffAttendance`, `getAttendanceAcademicSignals`) rather than new untested data paths. Owner (or an owner-previewing-other-roles session, per the established pattern earlier in this file) should click through `/principal`, `/coordinator`, and `/teacher` to confirm the visual result matches the reference screenshot.
+
+**Deployed and confirmed READY**: commit `28dbc36` on `main`, Vercel deployment `dpl_CwZKv55qdkg5WHq3Ce6c8enF5zSw`, live at `school-app-eight-lemon.vercel.app`.
+
+## Phase 2 — Coordinator "current schedule" visibility — 2026-09-08
+
+The owner reported `/coordinator/schedule` only ever showed the "generate schedule" form, with no way to see what had already been generated (Class 9/10's real, already-active exam-cycle schedules). Root cause: the page fetched every `schedule_items` row but only ever threaded it into `<ScheduleGenerator/>`'s internal per-subject "already scheduled" hints - there was no standalone read view.
+
+Fix is a pure rendering addition, **zero new queries**: reused the exact same read-only pattern already built for `app/principal/schedule/page.tsx` (`<ExistingScheduleList/>` from `components/examination/schedule-list.tsx`, grouped by class then subject) against the `classes`/`subjectsByClass`/`scheduleItemsBySubject` maps `app/coordinator/schedule/page.tsx` already computed for the generator. Added a "Current Schedule" section above the existing generator (now under its own "Generate a new schedule" heading), with an honest empty state when nothing has been generated yet. New i18n keys added to `coordinator.ts` (`en`+`ur`): `schedule.currentScheduleHeading`, `schedule.currentScheduleEmptyDescription`, `schedule.generateHeading`.
+
+**Build gates**: `npx tsc --noEmit`, `npm run lint`, and `npm run build` all clean.
+
+### Not yet independently verified
+- Live click-through as the coordinator test account to confirm the Class 9/10 exam-cycle schedules actually render (same password constraint as Phase 1 above).
