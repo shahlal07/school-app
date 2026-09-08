@@ -31,7 +31,7 @@ export async function getStudentAttendanceWorkspace(selectedClassId?: string, se
     keys.get(key)!.studentCount += 1;
   }
 
-  const options = [...keys.values()].sort((a, b) => `${a.className}${a.sectionName}`.localeCompare(`${b.className}${b.sectionName}`));
+  const options = Array.from(keys.values()).sort((a, b) => `${a.className}${a.sectionName}`.localeCompare(`${b.className}${b.sectionName}`));
   let selected = null;
   if (selectedClassId && selectedSectionId) {
     const option = options.find((row) => row.classId === selectedClassId && row.sectionId === selectedSectionId);
