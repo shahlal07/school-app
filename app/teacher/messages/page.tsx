@@ -1,33 +1,14 @@
-import { requireRole } from "@/lib/auth/session";
-import { createClient } from "@/lib/supabase/server";
-import type { Message, Profile } from "@/types/database";
-
-import { TeacherMessagesClient } from "./messages-client";
+import { MessagesClient } from "@/components/messaging/messages-client";
+import { getMessagingData } from "@/lib/messaging/data";
 
 export default async function TeacherMessagesPage() {
-  const profile = await requireRole("teacher");
-  const supabase = createClient();
-
-  const { data: ownerData } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("role", "owner")
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
-  const owner = (ownerData as Profile | null) ?? null;
-  let messages: Message[] = [];
-  if (owner) {
-    const { data: messagesData } = await supabase
-      .from("messages")
-      .select("*")
-      .or(
-        `and(sender_id.eq.${profile.user_id},recipient_id.eq.${owner.user_id}),and(sender_id.eq.${owner.user_id},recipient_id.eq.${profile.user_id})`
-      )
-      .order("created_at", { ascending: true });
-    messages = (messagesData as Message[] | null) ?? [];
-  }
-
-  return <TeacherMessagesClient teacherUserId={profile.user_id} owner={owner} messages={messages} />;
+  const { profile, people, messages } = await getMessagingData();
+  return (
+    <MessagesClient
+      currentUserId={profile.user_id}
+      profiles={people}
+      messages={messages}
+      roleLabel="Teacher"
+    />
+  );
 }
