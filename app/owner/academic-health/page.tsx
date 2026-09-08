@@ -5,5 +5,11 @@ import { OwnerAcademicHealth } from "@/components/owner/owner-academic-health";
 export default async function OwnerAcademicHealthPage() {
   await requireRole("owner");
   const data = await getAcademicIntelligenceData();
-  return <OwnerAcademicHealth {...data} />;
+  return (
+    <OwnerAcademicHealth
+      {...data}
+      interventionHref="/owner/academic-health"
+      resultsHref="/owner/academic-health"
+    />
+  );
 }
