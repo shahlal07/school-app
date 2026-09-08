@@ -1,4 +1,4 @@
-import { requireAnyRole } from "@/lib/auth/session";
+import { requireRole } from "@/lib/auth/session";
 import { getT } from "@/lib/i18n/get-translator";
 import { StudentAttendanceWorkspace } from "@/components/attendance/student-attendance-workspace";
 import { getTeacherAttendanceWorkspace } from "@/lib/attendance/teacher-workspace";
@@ -7,7 +7,7 @@ import { Bdi } from "@/components/shared/bdi";
 
 export default async function TeacherAttendancePage({ searchParams }: { searchParams: Promise<{ class_id?: string; section_id?: string }> }) {
   const t = await getT();
-  const profile = await requireAnyRole(["teacher", "owner", "principal", "academic_coordinator"]);
+  const profile = await requireRole("teacher");
   const params = await searchParams;
   const today = pakistanDate();
   const { options, selected } = await getTeacherAttendanceWorkspace(profile.user_id, params.class_id, params.section_id);
