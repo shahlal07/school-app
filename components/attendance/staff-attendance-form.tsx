@@ -33,9 +33,13 @@ export function StaffAttendanceForm({ staff, attendanceDate, existing }: { staff
     if (remaining > 0) { setError(`Mark attendance for all ${remaining} remaining staff members.`); return; }
     setError(null);
     startTransition(async () => {
-      const result = await saveStaffAttendance({ attendance_date: attendanceDate, records: staff.map((member) => ({ staff_id: member.user_id, status: statuses[member.user_id] as AttendanceStatus })) });
-      if (!result.ok) { setError(t("attendanceLeadership.staffForm.saveError")); return; }
-      setSaved(true);
+      try {
+        const result = await saveStaffAttendance({ attendance_date: attendanceDate, records: staff.map((member) => ({ staff_id: member.user_id, status: statuses[member.user_id] as AttendanceStatus })) });
+        if (!result.ok) { setError(result.error || t("attendanceLeadership.staffForm.saveError")); return; }
+        setSaved(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t("attendanceLeadership.staffForm.saveError"));
+      }
     });
   }
 
