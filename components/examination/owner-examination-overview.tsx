@@ -1,0 +1,68 @@
+import type { ScheduleItemRow } from "@/components/examination/schedule-list";
+import { Badge } from "@/components/ui/badge";
+
+const typeLabel: Record<string, string> = {
+  topic: "Topic test", chapter: "Chapter test", revision: "Revision", monthly: "Monthly",
+  midterm: "Midterm", terminal: "Terminal", final: "Final", custom: "Custom"
+};
+
+function dateLabel(value: string) {
+  return new Date(`${value}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+function daysFromToday(value: string, today: string) {
+  return Math.round((new Date(`${value}T00:00:00Z`).getTime() - new Date(`${today}T00:00:00Z`).getTime()) / 86400000);
+}
+
+export function OwnerExaminationOverview({ items, classNames, subjectNames, today }: {
+  items: ScheduleItemRow[];
+  classNames: Record<string, string>;
+  subjectNames: Record<string, string>;
+  today: string;
+}) {
+  const upcoming = items.filter((item) => daysFromToday(item.scheduled_date, today) >= 0 && daysFromToday(item.scheduled_date, today) <= 7 && item.status !== "cancelled").sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
+  const completed = items.filter((item) => item.status === "completed").length;
+  const scheduled = items.filter((item) => ["upcoming", "scheduled"].includes(item.status)).length;
+  const attention = items.filter((item) => ["draft", "skipped", "rescheduled", "cancelled"].includes(item.status)).length;
+  const completion = items.length ? Math.round((completed / items.length) * 100) : 0;
+  const next = items.filter((item) => daysFromToday(item.scheduled_date, today) >= 0 && item.status !== "cancelled").sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date)).slice(0, 6);
+
+  const statCards = [
+    ["Exam schedule", String(items.length), "planned assessments"],
+    ["Completed", String(completed), `${completion}% of schedule`],
+    ["Next 7 days", String(upcoming.length), "assessments coming up"],
+    ["Needs attention", String(attention), "draft / changed items"]
+  ];
+
+  return (
+    <main className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6">
+      <header className="rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-7">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-neutral-400">Owner · Examinations</p><h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-950 sm:text-3xl">Examination command center</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">Executive visibility into what is scheduled, what is completed, and what needs academic follow-up. Scheduling and result entry remain with the Academic Coordinator.</p></div>
+          <div className="rounded-2xl bg-neutral-50 px-4 py-3 text-sm"><p className="text-xs text-neutral-400">Schedule completion</p><p className="mt-1 text-2xl font-semibold tabular-nums text-neutral-900">{completion}%</p></div>
+        </div>
+      </header>
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {statCards.map(([label, value, detail]) => <div key={label} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{label}</p><p className="mt-2 text-2xl font-semibold tabular-nums text-neutral-950">{value}</p><p className="mt-1 text-xs text-neutral-500">{detail}</p></div>)}
+      </section>
+
+      <section className="grid gap-5 lg:grid-cols-[1.35fr_.65fr]">
+        <div className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
+          <div className="border-b border-neutral-100 px-4 py-4 sm:px-5"><p className="text-xs font-bold uppercase tracking-wide text-neutral-400">Upcoming</p><h2 className="mt-1 text-lg font-semibold text-neutral-900">Next assessments</h2></div>
+          <div className="divide-y divide-neutral-100">
+            {next.map((item) => <div key={item.id} className="flex items-center gap-3 px-4 py-4 sm:px-5"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold text-neutral-900">{item.title}</p><Badge variant="neutral">{typeLabel[item.test_type] ?? item.test_type}</Badge></div><p className="mt-1 text-xs text-neutral-500">{dateLabel(item.scheduled_date)} · {classNames[item.class_id] ?? "Class"} · {subjectNames[item.subject_id] ?? "Subject"}</p></div><Badge variant={item.status === "completed" ? "success" : item.status === "rescheduled" ? "warning" : item.status === "cancelled" ? "danger" : "info"}>{item.status}</Badge></div>)}
+            {next.length === 0 && <div className="px-5 py-10 text-center text-sm text-neutral-500">No upcoming assessments are scheduled.</div>}
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wide text-neutral-400">7-day readiness</p><div className="mt-4 h-2 overflow-hidden rounded-full bg-neutral-100"><div className="h-full rounded-full bg-neutral-900" style={{ width: `${upcoming.length ? Math.min(100, Math.round((upcoming.filter((x) => x.status === "scheduled").length / upcoming.length) * 100)) : 0}%` }} /></div><p className="mt-3 text-sm text-neutral-600">{upcoming.filter((x) => x.status === "scheduled").length} of {upcoming.length} upcoming items are formally scheduled.</p></div>
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wide text-neutral-400">Attention queue</p><div className="mt-4 space-y-3"><div className="flex justify-between text-sm"><span className="text-neutral-600">Draft items</span><strong>{items.filter((x) => x.status === "draft").length}</strong></div><div className="flex justify-between text-sm"><span className="text-neutral-600">Rescheduled</span><strong>{items.filter((x) => x.status === "rescheduled").length}</strong></div><div className="flex justify-between text-sm"><span className="text-neutral-600">Skipped</span><strong>{items.filter((x) => x.status === "skipped").length}</div><div className="flex justify-between text-sm"><span className="text-neutral-600">Cancelled</span><strong>{items.filter((x) => x.status === "cancelled").length}</strong></div></div></div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm"><div className="border-b border-neutral-100 px-4 py-4 sm:px-5"><p className="text-xs font-bold uppercase tracking-wide text-neutral-400">Schedule coverage</p><h2 className="mt-1 text-lg font-semibold text-neutral-900">Assessment plan</h2></div><div className="overflow-x-auto"><table className="min-w-[680px] w-full text-left text-sm"><thead className="border-b border-neutral-100 text-xs uppercase tracking-wide text-neutral-400"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Assessment</th><th className="px-4 py-3">Class</th><th className="px-4 py-3">Subject</th><th className="px-4 py-3">Status</th></tr></thead><tbody className="divide-y divide-neutral-100">{items.slice().sort((a,b) => a.scheduled_date.localeCompare(b.scheduled_date)).slice(0, 20).map((item) => <tr key={item.id}><td className="px-4 py-3 whitespace-nowrap text-neutral-600">{dateLabel(item.scheduled_date)}</td><td className="px-4 py-3 font-medium text-neutral-900">{item.title}</td><td className="px-4 py-3 text-neutral-600">{classNames[item.class_id] ?? "—"}</td><td className="px-4 py-3 text-neutral-600">{subjectNames[item.subject_id] ?? "—"}</td><td className="px-4 py-3"><Badge variant={item.status === "completed" ? "success" : item.status === "cancelled" ? "danger" : item.status === "draft" ? "neutral" : "info"}>{item.status}</Badge></td></tr>)}</tbody></table>{items.length > 20 && <p className="px-4 py-3 text-xs text-neutral-500">Showing the first 20 scheduled items. Full operational scheduling remains available to the Academic Coordinator.</p>}</div></section>
+    </main>
+  );
+}
