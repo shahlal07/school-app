@@ -1,11 +1,9 @@
 import { requireRole } from "@/lib/auth/session";
 import { getAcademicIntelligenceData } from "@/lib/examination/academic-intelligence-data";
-import { AcademicIntelligence } from "@/components/examination/academic-intelligence";
-import { getT } from "@/lib/i18n/get-translator";
+import { OwnerAcademicHealth } from "@/components/owner/owner-academic-health";
 
-export default async function OwnerAcademicHealthPage(){
+export default async function OwnerAcademicHealthPage() {
   await requireRole("owner");
-  const t=await getT();
-  const data=await getAcademicIntelligenceData();
-  return <AcademicIntelligence {...data} roleLabel={t("owner.academicHealth.roleLabel")} interventionHref="/owner/interventions" resultsHref="/owner/results"/>;
+  const data = await getAcademicIntelligenceData();
+  return <OwnerAcademicHealth {...data} />;
 }
