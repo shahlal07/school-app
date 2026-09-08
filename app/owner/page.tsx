@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getAcademicIntelligenceData } from "@/lib/examination/academic-intelligence-data";
 import { getDailyAttendanceReport } from "@/lib/attendance/report";
+import { OwnerSchoolHealthGraph } from "@/components/owner/owner-school-health-graph";
 
 const clamp = (value: number) => Math.max(0, Math.min(100, value));
 
@@ -140,6 +141,15 @@ export default async function OwnerHomePage() {
           )}
         </div>
       </section>
+
+      <OwnerSchoolHealthGraph
+        points={[
+          { label: "Academic performance", value: performance?.score ?? intelligence.healthScore },
+          { label: "Attendance", value: attendancePct ?? 0 },
+          { label: "Examination readiness", value: exam?.score ?? 0 },
+          { label: "Teacher compliance", value: teacher?.score ?? 0 }
+        ]}
+      />
 
       <section>
         <SectionHeader title="School pulse" />
