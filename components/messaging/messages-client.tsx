@@ -34,16 +34,52 @@ function MessagesInner({ currentUserId, profiles, messages, roleLabel }: Message
     [profiles, currentUserId]
   );
 
+  const unreadByUser = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const message of messages) {
+      if (message.recipient_id === currentUserId && message.read_at === null) {
+        counts.set(message.sender_id, (counts.get(message.sender_id) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [messages, currentUserId]);
+
+  const latestByUser = useMemo(() => {
+    const latest = new Map<string, Message>();
+    for (const message of messages) {
+      const otherUserId = message.sender_id === currentUserId ? message.recipient_id : message.sender_id;
+      const existing = latest.get(otherUserId);
+      if (!existing || new Date(message.created_at).getTime() > new Date(existing.created_at).getTime()) {
+        latest.set(otherUserId, message);
+      }
+    }
+    return latest;
+  }, [messages, currentUserId]);
+
   const filteredRecipients = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return recipients;
-    return recipients.filter((profile) =>
-      [profile.full_name, profile.role, profile.designation ?? "", profile.username ?? ""]
-        .join(" ")
-        .toLowerCase()
-        .includes(q)
-    );
-  }, [recipients, search]);
+    const filtered = q
+      ? recipients.filter((profile) =>
+          [profile.full_name, profile.role, profile.designation ?? "", profile.username ?? ""]
+            .join(" ")
+            .toLowerCase()
+            .includes(q)
+        )
+      : recipients;
+
+    return [...filtered].sort((a, b) => {
+      const unreadDiff = (unreadByUser.get(b.user_id) ?? 0) - (unreadByUser.get(a.user_id) ?? 0);
+      if (unreadDiff !== 0) return unreadDiff;
+
+      const latestA = latestByUser.get(a.user_id);
+      const latestB = latestByUser.get(b.user_id);
+      const latestTimeA = latestA ? new Date(latestA.created_at).getTime() : 0;
+      const latestTimeB = latestB ? new Date(latestB.created_at).getTime() : 0;
+      if (latestTimeA !== latestTimeB) return latestTimeB - latestTimeA;
+
+      return a.full_name.localeCompare(b.full_name);
+    });
+  }, [recipients, search, unreadByUser, latestByUser]);
 
   const selectedProfile = recipients.find((profile) => profile.user_id === selectedUserId) ?? null;
 
@@ -55,16 +91,6 @@ function MessagesInner({ currentUserId, profiles, messages, roleLabel }: Message
         (message.sender_id === selectedUserId && message.recipient_id === currentUserId)
     );
   }, [messages, currentUserId, selectedUserId]);
-
-  const unreadByUser = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const message of messages) {
-      if (message.recipient_id === currentUserId && message.read_at === null) {
-        counts.set(message.sender_id, (counts.get(message.sender_id) ?? 0) + 1);
-      }
-    }
-    return counts;
-  }, [messages, currentUserId]);
 
   useEffect(() => {
     if (!selectedUserId) return;
@@ -136,10 +162,7 @@ function MessagesInner({ currentUserId, profiles, messages, roleLabel }: Message
               <ul className="divide-y divide-neutral-100">
                 {filteredRecipients.map((profile) => {
                   const unread = unreadByUser.get(profile.user_id) ?? 0;
-                  const latest = messages
-                    .filter((message) => message.sender_id === profile.user_id || message.recipient_id === profile.user_id)
-                    .filter((message) => message.sender_id === currentUserId || message.recipient_id === currentUserId)
-                    .at(-1);
+                  const latest = latestByUser.get(profile.user_id);
                   return (
                     <li key={profile.user_id}>
                       <button
@@ -150,7 +173,7 @@ function MessagesInner({ currentUserId, profiles, messages, roleLabel }: Message
                         <Avatar name={profile.full_name} size="md" />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-2">
-                            <span className="truncate text-sm font-medium text-neutral-900"><Bdi>{profile.full_name}</Bdi></span>
+                            <span className={`truncate text-sm ${unread > 0 ? "font-bold text-neutral-950" : "font-medium text-neutral-900"}`}><Bdi>{profile.full_name}</Bdi></span>
                             {unread > 0 && <span className="rounded-full bg-primary-600 px-2 py-0.5 text-[10px] font-semibold text-white">{unread}</span>}
                           </span>
                           <span className="block truncate text-xs text-neutral-500">
