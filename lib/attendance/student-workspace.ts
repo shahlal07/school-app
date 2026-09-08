@@ -12,7 +12,7 @@ export async function getStudentAttendanceWorkspace(selectedClassId?: string, se
 
   const classById = new Map((classes ?? []).map((row) => [row.id, row]));
   const sectionById = new Map((sections ?? []).map((row) => [row.id, row]));
-  const teacherIds = [...new Set((assignments ?? []).map((row) => row.teacher_id))];
+  const teacherIds = Array.from(new Set((assignments ?? []).map((row) => row.teacher_id)));
   const { data: teachers } = teacherIds.length
     ? await supabase.from("profiles").select("user_id,full_name").in("user_id", teacherIds)
     : { data: [] as { user_id: string; full_name: string }[] };
