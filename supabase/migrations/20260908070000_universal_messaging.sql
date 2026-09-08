@@ -25,35 +25,27 @@ $$;
 revoke execute on function public.list_messageable_profiles() from public, anon;
 grant execute on function public.list_messageable_profiles() to authenticated;
 
--- The recipient must be a real active School OS account, regardless of role.
-alter policy messages_insert on public.messages
-  with check (
-    sender_id = (select auth.uid())
-    and sender_id <> recipient_id
-    and public.user_has_role(recipient_id, 'owner')
-      or (
-        sender_id = (select auth.uid())
-        and sender_id <> recipient_id
-        and exists (
-          select 1
-          from public.profiles p
-          where p.user_id = recipient_id
-            and p.is_active = true
-        )
-      )
+create or replace function public.user_is_active(target_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.profiles
+    where user_id = target_user_id and is_active = true
   );
+$$;
 
--- The expression above intentionally allows any active role, but the first
--- branch is retained for compatibility with earlier policy semantics.
--- Normalize it into one explicit, role-independent predicate.
+revoke execute on function public.user_is_active(uuid) from public, anon;
+grant execute on function public.user_is_active(uuid) to authenticated;
+
+-- Any authenticated School OS staff account can send to any other active
+-- School OS staff account. Message contents remain protected by messages_select.
 alter policy messages_insert on public.messages
   with check (
     sender_id = (select auth.uid())
     and sender_id <> recipient_id
-    and exists (
-      select 1
-      from public.profiles p
-      where p.user_id = recipient_id
-        and p.is_active = true
-    )
+    and public.user_is_active(recipient_id)
   );
