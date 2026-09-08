@@ -57,62 +57,60 @@ function formatDisplayDate(iso: string): string {
   });
 }
 
-interface ScheduleListRowProps {
-  date: string;
-  title: string;
-  testType: ScheduleTestType;
-  status?: ScheduleItemStatus;
-}
+function ScheduleTable({ items, preview = false }: { items: ScheduleItemRow[] | GeneratedScheduleItem[]; preview?: boolean }) {
+  if (items.length === 0) return null;
 
-function ScheduleListRow({ date, title, testType, status }: ScheduleListRowProps) {
+  const rows = preview
+    ? (items as GeneratedScheduleItem[]).map((item, index) => ({
+        key: `${item.chapterId}-${item.topicId ?? "chapter"}-${index}`,
+        date: item.date,
+        title: item.title,
+        type: TEST_TYPE_LABEL[item.testType],
+        status: null as ScheduleItemStatus | null
+      }))
+    : (items as ScheduleItemRow[])
+        .slice()
+        .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date))
+        .map((item) => ({
+          key: item.id,
+          date: item.scheduled_date,
+          title: item.title,
+          type: TEST_TYPE_LABEL[item.test_type],
+          status: item.status
+        }));
+
   return (
-    <li className="flex flex-col gap-1.5 border-b border-neutral-100 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate text-sm font-medium text-neutral-900">{title}</span>
-        <span className="text-xs text-neutral-500">{formatDisplayDate(date)}</span>
+    <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[620px] text-left text-sm">
+          <thead className="border-b border-neutral-200 bg-neutral-50 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            <tr>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Exam / Test</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-100">
+            {rows.map((row) => (
+              <tr key={row.key} className="align-middle hover:bg-neutral-50/70">
+                <td className="whitespace-nowrap px-4 py-3 font-medium text-neutral-800">{formatDisplayDate(row.date)}</td>
+                <td className="px-4 py-3 font-medium text-neutral-900">{row.title}</td>
+                <td className="px-4 py-3"><Badge variant="neutral">{row.type}</Badge></td>
+                <td className="px-4 py-3">{row.status ? <Badge variant={STATUS_VARIANT[row.status]}>{row.status}</Badge> : <span className="text-neutral-400">Preview</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-        <Badge variant="neutral">{TEST_TYPE_LABEL[testType]}</Badge>
-        {status && <Badge variant={STATUS_VARIANT[status]}>{status}</Badge>}
-      </div>
-    </li>
+    </div>
   );
 }
 
 export function ExistingScheduleList({ items }: { items: ScheduleItemRow[] }) {
-  if (items.length === 0) return null;
-
-  const sorted = [...items].sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
-
-  return (
-    <ul className="flex flex-col">
-      {sorted.map((item) => (
-        <ScheduleListRow
-          key={item.id}
-          date={item.scheduled_date}
-          title={item.title}
-          testType={item.test_type}
-          status={item.status}
-        />
-      ))}
-    </ul>
-  );
+  return <ScheduleTable items={items} />;
 }
 
 export function PreviewScheduleList({ items }: { items: GeneratedScheduleItem[] }) {
-  if (items.length === 0) return null;
-
-  return (
-    <ul className="flex flex-col">
-      {items.map((item, index) => (
-        <ScheduleListRow
-          // eslint-disable-next-line react/no-array-index-key -- previews have no stable id yet
-          key={`${item.chapterId}-${item.topicId ?? "chapter"}-${index}`}
-          date={item.date}
-          title={item.title}
-          testType={item.testType}
-        />
-      ))}
-    </ul>
-  );
+  return <ScheduleTable items={items} preview />;
 }
