@@ -37,18 +37,18 @@ export default async function ClerkHomePage() {
     <DashboardShell
       eyebrow="School OS · Administrative Operations"
       title="Clerk workspace"
-      subtitle="Student records, documents, admissions, fees, staff profiles, and examination printing."
+      subtitle="Student records, documents, admissions, fees, staff profiles, attendance, and examination printing."
       metrics={[
         { label: "Pending documents", value: summary.counts.pendingDocuments, detail: "needs processing", tone: summary.counts.pendingDocuments ? "warning" : "success", href: "/clerk/documents" },
         { label: "New admissions", value: summary.counts.pendingAdmissionsThisMonth, detail: "this month", tone: summary.counts.pendingAdmissionsThisMonth ? "info" : "success", href: "/clerk/admissions" },
         { label: "Fee records", value: summary.counts.pendingOrOverdueFees, detail: "pending or overdue", tone: summary.counts.pendingOrOverdueFees ? "warning" : "success", href: "/clerk/fees" },
-        { label: "Print queue", value: printQueue, detail: "exam papers", tone: printQueue ? "warning" : "success", href: "/clerk/papers" }
+        { label: "Staff attendance", value: "Open", detail: "mark today", tone: "info", href: "/clerk/attendance" }
       ]}
       quickActions={[
         { label: "Student records", href: "/clerk/students", icon: "users", primary: true },
-        { label: "Printing", href: "/clerk/papers", icon: "printer" },
-        { label: "Staff", href: "/clerk/staff", icon: "people" },
-        { label: "Documents", href: "/clerk/documents", icon: "file" }
+        { label: "Messages", href: "/clerk/messages", icon: "message-circle" },
+        { label: "Staff attendance", href: "/clerk/attendance", icon: "people" },
+        { label: "Printing", href: "/clerk/papers", icon: "printer" }
       ]}
     >
       <DashboardSection title="Recent tasks" action={{ label: "View documents", href: "/clerk/documents" }}>
@@ -58,6 +58,8 @@ export default async function ClerkHomePage() {
       <DashboardSection title="Quick actions">
         <div className="grid grid-cols-2 gap-2.5">
           {[
+            ["Messages", "/clerk/messages"],
+            ["Staff attendance", "/clerk/attendance"],
             ["Student records", "/clerk/students"],
             ["Staff directory", "/clerk/staff"],
             ["Fee management", "/clerk/fees"],
@@ -78,7 +80,10 @@ export default async function ClerkHomePage() {
             <div><p className="text-2xl font-semibold text-neutral-900">{staff.length}</p><p className="text-xs text-neutral-500">Active staff</p></div>
             <div><p className="text-2xl font-semibold text-neutral-900">{students.length}</p><p className="text-xs text-neutral-500">Active students</p></div>
           </div>
-          <Link href="/clerk/staff" className="mt-4 block rounded-xl bg-neutral-50 px-3 py-2.5 text-center text-xs font-semibold text-neutral-700">Edit staff usernames & profiles →</Link>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Link href="/clerk/staff" className="rounded-xl bg-neutral-50 px-3 py-2.5 text-center text-xs font-semibold text-neutral-700">Edit staff profiles →</Link>
+            <Link href="/clerk/attendance" className="rounded-xl bg-primary-50 px-3 py-2.5 text-center text-xs font-semibold text-primary-700">Mark attendance →</Link>
+          </div>
         </div>
       </DashboardSection>
     </DashboardShell>
