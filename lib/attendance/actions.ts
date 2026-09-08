@@ -52,7 +52,7 @@ export async function saveStaffAttendance(input: {
   records: { staff_id: string; status: AttendanceStatus; note?: string }[];
 }) {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "academic_coordinator") {
+  if (!profile || !["academic_coordinator", "clerk"].includes(profile.role)) {
     return { ok: false as const, error: "not_authorized" };
   }
   input.records.forEach((record) => assertAttendanceStatus(record.status));
@@ -71,6 +71,7 @@ export async function saveStaffAttendance(input: {
   const { error } = await supabase.from("staff_attendance").upsert(rows, { onConflict: "attendance_date,staff_id" });
   if (error) return { ok: false as const, error: error.message };
 
+  revalidatePath("/clerk/attendance");
   revalidatePath("/coordinator/attendance");
   revalidatePath("/principal/attendance");
   revalidatePath("/owner/attendance");
