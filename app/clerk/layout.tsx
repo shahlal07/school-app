@@ -11,6 +11,7 @@ export default async function ClerkLayout({ children }: { children: React.ReactN
     homeHref="/clerk"
     sidebarItems={[
       { label: t("nav.dashboard"), href: "/clerk" },
+      { label: "Messages", href: "/clerk/messages" },
       { label: t("nav.students"), href: "/clerk/students" },
       { label: t("nav.staff"), href: "/clerk/staff" },
       { label: "Documents", href: "/clerk/documents" },
@@ -18,11 +19,11 @@ export default async function ClerkLayout({ children }: { children: React.ReactN
       { label: "Fees", href: "/clerk/fees" },
       { label: t("nav.examPrinting"), href: "/clerk/papers" },
       { label: "Enter Marks", href: "/clerk/marks" },
-      { label: "Attendance", href: "/clerk/attendance" }
+      { label: "Staff Attendance", href: "/clerk/attendance" }
     ]}
     bottomNavItems={[
       { label: t("nav.home"), href: "/clerk", icon: "home" },
-      { label: "Marks", href: "/clerk/marks", icon: "book-open" },
+      { label: "Messages", href: "/clerk/messages", icon: "message-circle" },
       { label: "Attendance", href: "/clerk/attendance", icon: "user" }
     ]}
   >{children}</RoleShell>;
